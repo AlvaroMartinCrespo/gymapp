@@ -12,6 +12,8 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Pinned upstream runtime; retain its original source and license notices.
+    "public/vendor/**",
   ]),
 ]);
 

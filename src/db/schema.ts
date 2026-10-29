@@ -1,12 +1,18 @@
 import { sql } from "drizzle-orm";
 import {
+  boolean,
+  date,
   index,
   integer,
-  real,
-  sqliteTable,
+  jsonb,
+  numeric,
+  pgTable,
+  primaryKey,
   text,
+  timestamp,
   uniqueIndex,
-} from "drizzle-orm/sqlite-core";
+  uuid,
+} from "drizzle-orm/pg-core";
 
 export const CATEGORIES = [
   "Pecho",
@@ -20,114 +26,126 @@ export const CATEGORIES = [
 export type Category = (typeof CATEGORIES)[number];
 
 const id = () =>
-  text("id")
+  uuid("id")
     .primaryKey()
-    .$defaultFn(() => crypto.randomUUID());
+    .defaultRandom();
 
 const createdAt = () =>
-  integer("created_at", { mode: "timestamp" })
+  timestamp("created_at", { withTimezone: true })
     .notNull()
-    .default(sql`(unixepoch())`);
+    .defaultNow();
 
-export const users = sqliteTable("users", {
-  id: id(),
-  username: text("username").notNull().unique(),
-  email: text("email").notNull().unique(),
-  passwordHash: text("password_hash").notNull(),
-  avatarUrl: text("avatar_url"),
-  createdAt: createdAt(),
-});
-
-export const sessions = sqliteTable(
-  "sessions",
+export const profiles = pgTable(
+  "profiles",
   {
-    id: id(),
-    userId: text("user_id")
-      .notNull()
-      .references(() => users.id, { onDelete: "cascade" }),
-    token: text("token").notNull().unique(),
-    expiresAt: integer("expires_at", { mode: "timestamp" }).notNull(),
+    id: uuid("id").primaryKey(),
+    username: text("username").notNull(),
+    avatarUrl: text("avatar_url"),
+    rankingsEnabled: boolean("rankings_enabled").notNull().default(false),
+    createdAt: createdAt(),
   },
-  (t) => [index("sessions_user_idx").on(t.userId)],
+  (table) => [uniqueIndex("profiles_username_uq").on(sql`lower(${table.username})`)],
 );
 
-// Catálogo 100 % cerrado: los ejercicios se insertan con el seed (paso 2.3)
-export const exercisesCatalog = sqliteTable("exercises_catalog", {
+export const coachUsage = pgTable(
+  "coach_usage",
+  {
+    userId: uuid("user_id").notNull().references(() => profiles.id, { onDelete: "cascade" }),
+    day: date("day").notNull(),
+    requests: integer("requests").notNull(),
+    minuteStart: timestamp("minute_start", { withTimezone: true }).notNull(),
+    minuteRequests: integer("minute_requests").notNull(),
+  },
+  (table) => [primaryKey({ columns: [table.userId, table.day] })],
+);
+
+export const exercisesCatalog = pgTable("exercises_catalog", {
   id: text("id").primaryKey(), // p. ej. 'leg_press'
   name: text("name").notNull(),
   category: text("category", { enum: CATEGORIES }).notNull(),
-  primaryMeshes: text("primary_meshes", { mode: "json" })
+  primaryMeshes: jsonb("primary_meshes")
     .$type<string[]>()
     .notNull(),
-  secondaryMeshes: text("secondary_meshes", { mode: "json" })
+  secondaryMeshes: jsonb("secondary_meshes")
     .$type<string[]>()
     .notNull()
-    .default(sql`'[]'`),
+    .default(sql`'[]'::jsonb`),
   defaultCamera: text("default_camera", { enum: ["front", "back"] })
     .notNull()
     .default("front"),
 });
 
-export const workoutLogs = sqliteTable(
+export const workoutLogs = pgTable(
   "workout_logs",
   {
     id: id(),
-    userId: text("user_id")
+    userId: uuid("user_id")
       .notNull()
-      .references(() => users.id, { onDelete: "cascade" }),
-    date: text("date").notNull(), // YYYY-MM-DD
+      .references(() => profiles.id, { onDelete: "cascade" })
+      .default(sql`auth.uid()`),
+    date: date("date").notNull().default(sql`current_date`),
+    completedAt: timestamp("completed_at", { withTimezone: true }),
   },
   (t) => [uniqueIndex("workout_logs_user_date_uq").on(t.userId, t.date)],
 );
 
-export const workoutSets = sqliteTable(
+export const workoutSets = pgTable(
   "workout_sets",
   {
     id: id(),
-    workoutLogId: text("workout_log_id")
+    workoutLogId: uuid("workout_log_id")
       .notNull()
       .references(() => workoutLogs.id, { onDelete: "cascade" }),
     exerciseId: text("exercise_id")
       .notNull()
       .references(() => exercisesCatalog.id),
     setNumber: integer("set_number").notNull(),
-    weight: real("weight").notNull(), // kg
+    weight: numeric("weight", { precision: 8, scale: 2 }).notNull(),
     reps: integer("reps").notNull(),
-    isPr: integer("is_pr", { mode: "boolean" }).notNull().default(false),
+    isPr: boolean("is_pr").notNull().default(false),
+    clientRequestId: uuid("client_request_id"),
   },
   (t) => [
     index("workout_sets_log_idx").on(t.workoutLogId),
     index("workout_sets_exercise_idx").on(t.exerciseId),
+    uniqueIndex("workout_sets_number_uq").on(t.workoutLogId, t.exerciseId, t.setNumber),
+    uniqueIndex("workout_sets_request_uq").on(t.workoutLogId, t.clientRequestId),
   ],
 );
 
-export const aiAlerts = sqliteTable(
+export const aiAlerts = pgTable(
   "ai_alerts",
   {
     id: id(),
-    userId: text("user_id")
+    userId: uuid("user_id")
       .notNull()
-      .references(() => users.id, { onDelete: "cascade" }),
+      .references(() => profiles.id, { onDelete: "cascade" }),
     exerciseId: text("exercise_id")
       .notNull()
       .references(() => exercisesCatalog.id),
     alertType: text("alert_type", { enum: ["STAGNATION", "FATIGUE"] }).notNull(),
     message: text("message").notNull(),
-    isRead: integer("is_read", { mode: "boolean" }).notNull().default(false),
+    isRead: boolean("is_read").notNull().default(false),
+    analysisWeek: date("analysis_week"),
+    sourceWorkoutLogId: uuid("source_workout_log_id").references(() => workoutLogs.id, { onDelete: "cascade" }),
+    ruleCode: text("rule_code", { enum: ["STAGNATION_V1"] }),
     createdAt: createdAt(),
   },
-  (t) => [index("ai_alerts_user_idx").on(t.userId, t.isRead)],
+  (t) => [
+    index("ai_alerts_user_idx").on(t.userId, t.isRead),
+    uniqueIndex("ai_alerts_stagnation_week_uq").on(t.userId, t.exerciseId, t.analysisWeek).where(sql`${t.ruleCode} = 'STAGNATION_V1'`),
+  ],
 );
 
-export const socialFeed = sqliteTable(
+export const socialFeed = pgTable(
   "social_feed",
   {
     id: id(),
-    userId: text("user_id")
+    userId: uuid("user_id")
       .notNull()
-      .references(() => users.id, { onDelete: "cascade" }),
+      .references(() => profiles.id, { onDelete: "cascade" }),
     type: text("type", { enum: ["WORKOUT_SUMMARY", "NEW_PR"] }).notNull(),
-    referenceId: text("reference_id").notNull(),
+    referenceId: uuid("reference_id").notNull(),
     likesCount: integer("likes_count").notNull().default(0),
     createdAt: createdAt(),
   },

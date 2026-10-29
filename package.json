@@ -10,9 +10,11 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "db:generate": "drizzle-kit generate",
-    "db:migrate:local": "wrangler d1 migrations apply gymapp-db --local",
-    "db:migrate:remote": "wrangler d1 migrations apply gymapp-db --remote"
+    "test": "node --test scripts/*.test.mjs",
+    "db:seed": "node scripts/seed.mjs --write",
+    "db:seed:sql": "node scripts/seed.mjs --sql",
+    "test:seed": "node --test scripts/seed.test.mjs",
+    "db:push": "supabase db push"
   },
   "dependencies": {
     "@radix-ui/react-slot": "^1.5.0",
@@ -36,7 +38,6 @@
     "eslint": "^9",
     "eslint-config-next": "16.4.3",
     "tailwindcss": "^4",
-    "typescript": "^5",
-    "wrangler": "^4.155.0"
+    "typescript": "^5"
   }
 }

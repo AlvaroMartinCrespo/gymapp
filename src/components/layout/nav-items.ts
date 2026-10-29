@@ -1,6 +1,7 @@
 import {
   BarChart3,
   Bot,
+  CalendarDays,
   Dumbbell,
   Timer,
   Trophy,
@@ -18,6 +19,7 @@ export const NAV_ITEMS: NavItem[] = [
   { href: "/recap", label: "Recap", icon: BarChart3 },
   { href: "/rankings", label: "Rankings", icon: Trophy },
   { href: "/coach", label: "Coach IA", icon: Bot },
+  { href: "/historial", label: "Historial", icon: CalendarDays },
 ];
 
 // En la barra inferior de móvil caben 5; el Coach IA queda en la sidebar

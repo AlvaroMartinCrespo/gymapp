@@ -1,11 +1,5 @@
-import { PagePlaceholder } from "@/components/layout/page-placeholder";
+import { ProfilePanel } from "@/components/profile/profile-panel";
 
 export default function Home() {
-  return (
-    <PagePlaceholder
-      title="Perfil"
-      description="Frase del día, alertas de fatiga y tus mejores marcas"
-      phase="Fase 4"
-    />
-  );
+  return <ProfilePanel />;
 }

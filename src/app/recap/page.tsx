@@ -1,13 +1,7 @@
-import { PagePlaceholder } from "@/components/layout/page-placeholder";
+import { RecapPanel } from "@/components/recap/recap-panel";
 
 export const metadata = { title: "Recap" };
 
 export default function Page() {
-  return (
-    <PagePlaceholder
-      title="Recap"
-      description="Comparativas, mapa de calor 3D e historial"
-      phase="Fase 4"
-    />
-  );
+  return <RecapPanel />;
 }

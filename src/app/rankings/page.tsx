@@ -1,13 +1,7 @@
-import { PagePlaceholder } from "@/components/layout/page-placeholder";
+import { RankingsPanel } from "@/components/rankings/rankings-panel";
 
 export const metadata = { title: "Rankings" };
 
 export default function Page() {
-  return (
-    <PagePlaceholder
-      title="Rankings"
-      description="Compite por ejercicio y categoría"
-      phase="Fase 4"
-    />
-  );
+  return <RankingsPanel />;
 }
