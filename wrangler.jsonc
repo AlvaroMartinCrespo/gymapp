@@ -1,0 +1,14 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "gymapp",
+  "compatibility_date": "2026-10-01",
+  "compatibility_flags": ["nodejs_compat"],
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "gymapp-db",
+      "database_id": "52963b64-860f-4fb2-8721-f869b232a48d",
+      "migrations_dir": "drizzle"
+    }
+  ]
+}

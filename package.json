@@ -9,12 +9,16 @@
     "prebuild": "npm run icons",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate:local": "wrangler d1 migrations apply gymapp-db --local",
+    "db:migrate:remote": "wrangler d1 migrations apply gymapp-db --remote"
   },
   "dependencies": {
     "@radix-ui/react-slot": "^1.5.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
+    "drizzle-orm": "^0.45.4",
     "geist": "^1.8.2",
     "lucide-react": "^1.64.0",
     "next": "16.4.3",
@@ -28,9 +32,11 @@
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "drizzle-kit": "^0.31.11",
     "eslint": "^9",
     "eslint-config-next": "16.4.3",
     "tailwindcss": "^4",
-    "typescript": "^5"
+    "typescript": "^5",
+    "wrangler": "^4.155.0"
   }
 }
