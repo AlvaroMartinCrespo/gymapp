@@ -1,4 +1,4 @@
-# 🏋️‍♂️ GymApp
+# GymRat
 
 PWA minimalista de gimnasio (dark mode, Shadcn/Xiaomi) con visor 3D de músculos, cronómetro flotante, recap, rankings y entrenador IA.
 
@@ -15,9 +15,9 @@ PWA minimalista de gimnasio (dark mode, Shadcn/Xiaomi) con visor 3D de músculos
 - PostgreSQL en Supabase y despliegue Next.js en Vercel.
 - Migración con perfiles, catálogo, entrenamientos, series, alertas y feed; políticas RLS y permisos mínimos.
 - Catálogo cerrado de 45 ejercicios en las siete categorías, con músculos primarios, secundarios y cámara inicial.
-- Registro, inicio y cierre de sesión en `/acceso` mediante Supabase Auth. Las contraseñas y sesiones no se guardan en tablas propias.
+- Registro con solo correo y contraseña, inicio y cierre de sesión en `/acceso` mediante Supabase Auth. El alias se genera automáticamente. Las contraseñas y sesiones no se guardan en tablas propias.
 - Cookies HttpOnly, SameSite=Lax y Secure en HTTPS; renovación de tokens. «Mantener sesión» fija un máximo de 90 días sin extenderlo en cada renovación. Sin esa opción, las cookies son de sesión.
-- Pendientes: configurar Supabase y Vercel, aplicar el SQL, comprobar RLS en PostgreSQL y probar el flujo de correo y acceso completo.
+- Pendientes: configurar Supabase y Vercel, aplicar el SQL, comprobar RLS en PostgreSQL y probar el acceso completo.
 
 El catálogo está en [src/db/exercises.json](src/db/exercises.json). Los nombres de músculos son identificadores lógicos provisionales: habrá que contrastarlos con las mallas reales de `human_muscles.glb` cuando se incorpore el modelo en la fase 3.
 
@@ -34,6 +34,8 @@ Se guarda en `localStorage` al cambiar de estado, no en cada tick. El tiempo se 
 ## Registro de series
 
 `/entrenar` detecta la fecha local del dispositivo, permite filtrar el catálogo cerrado por grupo muscular y ejercicio, muestra las series del día y registra kilos y repeticiones. Se pueden eliminar series con confirmación. El descanso automático se puede desactivar o configurar entre 1 y 5 minutos mediante los valores predefinidos.
+
+Debajo del formulario aparecen todos los ejercicios registrados ese día, con sus series, kilos y repeticiones, aunque se cambie el ejercicio seleccionado. Se recuperan del historial privado al cargar y tras guardar o eliminar una serie; no dependen de una lista temporal del navegador. Tocar el nombre de un ejercicio permite volver a él. Al finalizar, esa sección muestra el resumen del día con ejercicios, series, repeticiones y volumen total en kg·repeticiones. Requiere la migración de historial ya utilizada en `/historial`.
 
 Los datos grises del formulario proceden de la última sesión anterior del mismo ejercicio y usuario, asociando cada serie por su número. No se inventan registros si no existe historial y no se reutilizan pesos sin una acción explícita. El formulario no permite guardar sin una sesión válida o si la carga de datos falla.
 
@@ -76,7 +78,7 @@ npm run dev      # genera los iconos PWA y arranca en http://localhost:3000
 npm run build
 ```
 
-Los iconos PWA se generan con `scripts/generate-icons.mjs` (sin dependencias) antes de `dev` y `build`; no se versionan.
+Los iconos PWA y la mascota de GymRat (cara de rata caricaturesca) se generan con `scripts/generate-icons.mjs` (sin dependencias) antes de `dev` y `build`; no se versionan.
 
 Definir en `.env.local` las variables de [.env.example](.env.example). Solo se usan en el servidor; no requieren el prefijo `NEXT_PUBLIC_` ni una clave administrativa. No se han instalado paquetes para esta migración.
 
@@ -115,7 +117,7 @@ al no existir `node_modules/next/dist/docs/`; no se añaden APIs nuevas de Next.
 	el listado permite identificarlos aunque no sean visibles desde el ángulo actual.
 - Carga diferida del iframe, resolución limitada y renderizado bajo demanda;
 	suspensión al ocultarse, liberación de recursos y reintento tras error WebGL.
-- Atribución del modelo visible en la interfaz y en `public/models/ATTRIBUTION.md`.
+- Atribución del modelo accesible desde el enlace «Créditos y licencia» en la interfaz y en `public/models/ATTRIBUTION.md`.
 	Verificar el enlace original de descarga y posibles créditos adicionales antes
 	de redistribuir públicamente; los créditos disponibles proceden de su metadata.
 
@@ -143,10 +145,10 @@ pendientes de ejecución contra PostgreSQL real.
 1. Crear un proyecto Supabase. Obtener su URL y la clave **publishable** (también se admite la clave JWT antigua `anon`). Nunca usar `service_role` ni `sb_secret_` para el acceso de usuarios.
 2. Ejecutar, en orden, [supabase/migrations/20261029000000_initial.sql](supabase/migrations/20261029000000_initial.sql), [supabase/migrations/20261029010000_workout_operations.sql](supabase/migrations/20261029010000_workout_operations.sql), [supabase/migrations/20261029020000_profile_overview.sql](supabase/migrations/20261029020000_profile_overview.sql), [supabase/migrations/20261029030000_coach.sql](supabase/migrations/20261029030000_coach.sql), [supabase/migrations/20261029040000_workout_history.sql](supabase/migrations/20261029040000_workout_history.sql), [supabase/migrations/20261029050000_workout_recap.sql](supabase/migrations/20261029050000_workout_recap.sql) y [supabase/migrations/20261029060000_training_alerts.sql](supabase/migrations/20261029060000_training_alerts.sql). Aplicar únicamente las que falten: no repetir migraciones ya ejecutadas. La segunda habilita las operaciones de series; la tercera, el resumen de perfil; la cuarta, el contexto privado y la cuota del entrenador IA; la quinta, el historial mensual; la sexta, el recap; la séptima, la finalización y los avisos conservadores.
 3. Ejecutar [supabase/seed.sql](supabase/seed.sql) en el SQL Editor. Puede repetirse: actualiza el catálogo por ID sin borrar entrenamientos.
-4. En Authentication, habilitar correo/contraseña y confirmación de correo; configurar una longitud mínima de contraseña de 10 caracteres. El alta crea automáticamente el perfil mediante un trigger.
+4. En Authentication, habilitar correo/contraseña y **desactivar Confirm email** en la configuración del proveedor Email; configurar una longitud mínima de contraseña de 10 caracteres. El alta crea automáticamente el perfil mediante un trigger y abre sesión sin verificar el correo. `supabase/config.toml` ya desactiva la confirmación para desarrollo local; este archivo no cambia un proyecto remoto, que debe configurarse desde su panel.
 5. En Authentication > URL Configuration, establecer `Site URL` en `https://tu-dominio/acceso`. Para desarrollo, usar un proyecto de pruebas con `http://localhost:3000/acceso`. Añadir únicamente las URLs de redirección exactas necesarias para cada entorno.
 
-Tras confirmar el correo, se vuelve a `/acceso` para iniciar sesión. No hay inicio automático desde el enlace. Las restricciones adicionales de duración de sesiones que se configuren en Supabase prevalecen sobre los 90 días de las cookies.
+El registro solo pide correo y contraseña y redirige al perfil al recibir la sesión. Si el proyecto remoto mantiene la confirmación activada, Supabase seguirá exigiéndola: la aplicación no la elude ni inventa una sesión. Desactivarla permite crear cuentas con correos cuya propiedad no se ha verificado. Las restricciones adicionales de duración de sesiones que se configuren en Supabase prevalecen sobre los 90 días de las cookies.
 
 Las tablas privadas solo se pueden consultar o modificar como su propietario. El catálogo es de solo lectura para clientes. Los campos calculados (`is_pr`), las nuevas alertas y las publicaciones se reservan al servidor; sus procesos se implementarán en fases posteriores. El feed público de usuarios autenticados no incluye correos ni contraseñas.
 
@@ -178,7 +180,7 @@ El contexto enviado al proveedor excluye email, identificador de cuenta, foto y 
 1. Importar el repositorio en Vercel como proyecto Next.js. La configuración está en [vercel.json](vercel.json); el comando de compilación es `npm run build`.
 2. Añadir `SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY` y `GROQ_API_KEY` en las variables de entorno de Vercel, con los valores del proyecto correspondiente a Production o Preview.
 3. Aplicar previamente la migración y el seed en Supabase y configurar las URLs de Auth para el dominio de Vercel o el dominio propio.
-4. Desplegar y comprobar alta, correo de confirmación, acceso, recarga, cierre de sesión y aislamiento entre dos usuarios. Vercel no aplica las migraciones automáticamente durante el build.
+4. Desplegar y comprobar alta sin confirmación de correo, acceso inmediato, recarga, cierre de sesión y aislamiento entre dos usuarios. Vercel no aplica las migraciones automáticamente durante el build.
 
 ## Pruebas
 

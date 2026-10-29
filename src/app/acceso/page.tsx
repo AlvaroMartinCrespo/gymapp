@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, type FormEvent } from "react";
-import { Dumbbell, Eye, EyeOff, LoaderCircle, LogIn, UserPlus } from "lucide-react";
+import { Eye, EyeOff, LoaderCircle, LogIn, UserPlus } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 
@@ -42,7 +42,6 @@ export default function AccessPage() {
           action: mode,
           email: data.get("email"),
           password: data.get("password"),
-          username: data.get("username"),
           remember: data.get("remember") === "on",
         }),
       });
@@ -68,8 +67,8 @@ export default function AccessPage() {
 
   return (
     <section className="mx-auto w-full max-w-md py-4 sm:py-10" aria-labelledby="access-title">
-      <Dumbbell className="mb-5 size-10 text-primary" aria-hidden="true" />
-      <h1 id="access-title" className="text-3xl font-semibold">Tu cuenta GymApp</h1>
+      <span aria-hidden="true" className="mb-5 block size-20 bg-[url('/icons/icon-192.png')] bg-cover bg-center" />
+      <h1 id="access-title" className="text-3xl font-semibold">Tu cuenta GymRat</h1>
       <div role="tablist" aria-label="Acceso a la cuenta" className="mb-7 mt-7 grid grid-cols-2 border-b border-border">
         {(["login", "signup"] as const).map((value) => (
           <button
@@ -88,12 +87,6 @@ export default function AccessPage() {
         ))}
       </div>
       <form key={mode} id="access-form" role="tabpanel" aria-labelledby={`tab-${mode}`} onSubmit={submit} className="space-y-5">
-        {signup && (
-          <div className="space-y-2">
-            <label htmlFor="username" className="block text-sm font-medium">Usuario</label>
-            <input id="username" name="username" autoComplete="username" pattern="[A-Za-z0-9_]{3,30}" minLength={3} maxLength={30} title="Entre 3 y 30 letras, números o guiones bajos" required disabled={busy} className={inputClass} />
-          </div>
-        )}
         <div className="space-y-2">
           <label htmlFor="email" className="block text-sm font-medium">Correo electrónico</label>
           <input id="email" name="email" type="email" autoComplete="email" maxLength={254} required disabled={busy} className={inputClass} />

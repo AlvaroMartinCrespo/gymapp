@@ -67,7 +67,7 @@ test("un modelo no disponible no provoca ninguna llamada de fallback", async () 
   await assert.rejects(() => requestGroqAnswer(messages, coachContext, { apiKey: "test", fetcher: async () => {
     calls += 1;
     return Response.json({ error: { code: "model_not_found", message: "private-provider-message" } }, { status: 404 });
-  } }), (error) => error.status === 503 && error.message.includes(GROQ_MODEL) && !error.message.includes("private-provider-message"));
+  } }), (error) => error.status === 503 && !/private-provider-message|Groq|qwen/i.test(error.message));
   assert.equal(calls, 1);
 });
 

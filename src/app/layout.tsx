@@ -6,12 +6,12 @@ import { AppShell } from "@/components/layout/app-shell";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: { default: "GymApp", template: "%s · GymApp" },
+  title: { default: "GymRat", template: "%s · GymRat" },
   description: "Registra tus entrenos, visualiza tus músculos en 3D y progresa con IA.",
-  applicationName: "GymApp",
+  applicationName: "GymRat",
   appleWebApp: {
     capable: true,
-    title: "GymApp",
+    title: "GymRat",
     statusBarStyle: "black-translucent",
   },
   formatDetection: { telephone: false },

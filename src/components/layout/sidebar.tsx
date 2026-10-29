@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Dumbbell } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import { NAV_ITEMS } from "./nav-items";
@@ -13,10 +12,8 @@ export function Sidebar() {
   return (
     <aside className="fixed inset-y-0 left-0 z-40 hidden w-64 flex-col border-r border-border bg-background p-4 md:flex">
       <Link href="/" className="mb-8 flex items-center gap-3 px-3 pt-2">
-        <span className="flex size-9 items-center justify-center rounded-xl bg-primary shadow-[0_0_20px_-4px_var(--primary)]">
-          <Dumbbell className="size-5" />
-        </span>
-        <span className="text-lg font-semibold tracking-tight">GymApp</span>
+        <span aria-hidden="true" className="size-10 shrink-0 bg-[url('/icons/icon-192.png')] bg-cover bg-center" />
+        <span className="text-lg font-semibold">GymRat</span>
       </Link>
       <nav aria-label="Navegación principal">
         <ul className="flex flex-col gap-1">

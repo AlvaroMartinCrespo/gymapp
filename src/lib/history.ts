@@ -1,3 +1,23 @@
+type DaySet = { id: string; exercise_id: string; name: string; set_number: number; weight: number | string; reps: number };
+
+export function summarizeWorkoutDay(sets: DaySet[]) {
+  const exercises = new Map<string, { id: string; name: string; sets: DaySet[] }>();
+  let volume = 0;
+  let repetitions = 0;
+  for (const entry of sets) {
+    let exercise = exercises.get(entry.exercise_id);
+    if (!exercise) {
+      exercise = { id: entry.exercise_id, name: entry.name, sets: [] };
+      exercises.set(entry.exercise_id, exercise);
+    }
+    exercise.sets.push(entry);
+    volume += Number(entry.weight) * entry.reps;
+    repetitions += entry.reps;
+  }
+  for (const exercise of exercises.values()) exercise.sets.sort((first, second) => first.set_number - second.set_number);
+  return { exercises: [...exercises.values()], sets: sets.length, repetitions, volume };
+}
+
 export function localHistoryDate(now = new Date()) {
   return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
 }

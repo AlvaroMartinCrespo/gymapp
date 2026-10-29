@@ -76,6 +76,26 @@ test("el registro solicita el perfil y espera la confirmación de correo sin inv
   assert.equal(response.headers.getSetCookie().length, 0);
 });
 
+test("el registro sin alias genera uno único y abre sesión sin confirmación", async () => {
+  const usernames = new Set();
+  const handler = createAuthHandler({ env, fetcher: async (url, options) => {
+    assert.equal(url.pathname, "/auth/v1/signup");
+    const body = JSON.parse(options.body);
+    assert.equal(body.email, user.email);
+    assert.equal(body.password, "password123");
+    assert.match(body.data.username, /^rat_[a-f0-9]{24}$/);
+    usernames.add(body.data.username);
+    return Response.json({ ...session, user: { ...user, user_metadata: body.data } });
+  } });
+  for (let attempt = 0; attempt < 2; attempt++) {
+    const response = await handler(request({ action: "signup", email: user.email, password: "password123" }));
+    assert.equal(response.status, 200);
+    assert.match((await response.json()).user.username, /^rat_[a-f0-9]{24}$/);
+    assert.equal(response.headers.getSetCookie().length, 3);
+  }
+  assert.equal(usernames.size, 2);
+});
+
 test("bloquea CSRF, datos inválidos y contraseñas de registro cortas antes de llamar a Supabase", async () => {
   const handler = createAuthHandler({ env, fetcher: () => { throw new Error("Unexpected request"); } });
   assert.equal((await handler(request({ action: "login" }, { origin: "https://other.test" }))).status, 403);

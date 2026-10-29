@@ -163,14 +163,15 @@ export function createAuthHandler({ env = process.env, fetcher = fetch, onSessio
       if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || email.length > 254 || typeof password !== "string" || password.length === 0 || password.length > 128) {
         return reply({ error: "Introduce un correo y una contraseña válidos." }, 400);
       }
-      if (body.action === "signup" && (password.length < 10 || typeof body.username !== "string" || !/^[A-Za-z0-9_]{3,30}$/.test(body.username))) {
+      const username = body.username ?? `rat_${crypto.randomUUID().replaceAll("-", "").slice(0, 24)}`;
+      if (body.action === "signup" && (password.length < 10 || typeof username !== "string" || !/^[A-Za-z0-9_]{3,30}$/.test(username))) {
         return reply({ error: "El usuario debe tener entre 3 y 30 letras, números o guiones bajos; la contraseña, al menos 10 caracteres." }, 400);
       }
       const signup = body.action === "signup";
       const result = await call(signup ? "signup" : "token?grant_type=password", {
         email,
         password,
-        ...(signup ? { data: { username: body.username } } : {}),
+        ...(signup ? { data: { username } } : {}),
       });
       if (result.status === 429) return reply({ error: "Demasiados intentos. Espera un momento." }, 429);
       if (!result.ok) {

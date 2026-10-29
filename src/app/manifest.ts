@@ -2,8 +2,8 @@ import type { MetadataRoute } from "next";
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "GymApp",
-    short_name: "GymApp",
+    name: "GymRat",
+    short_name: "GymRat",
     description: "Registra tus entrenos, visualiza tus músculos en 3D y progresa con IA.",
     id: "/",
     start_url: "/",

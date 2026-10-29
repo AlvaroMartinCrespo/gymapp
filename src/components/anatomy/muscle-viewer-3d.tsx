@@ -76,7 +76,6 @@ export function MuscleViewer3D({ primary = [], secondary = [], camera = "front",
     <section aria-labelledby={headingId} className="min-w-0 space-y-3 rounded-2xl border border-border bg-background p-4">
       <header className="space-y-1">
         <h2 id={headingId} className="text-base font-semibold">{title}</h2>
-        <p className="text-xs leading-relaxed text-muted-foreground">Arrastra para girar 360°. Toca un músculo para identificarlo. También puedes usar los botones o las flechas del teclado.</p>
       </header>
       <div className="relative h-[360px] overflow-hidden rounded-xl border border-border sm:h-[440px]" aria-busy={status === "loading"}>
         {status !== "error" && <iframe
@@ -108,12 +107,11 @@ export function MuscleViewer3D({ primary = [], secondary = [], camera = "front",
         <div><dt className="inline font-medium text-foreground">Secundarios: </dt><dd className="inline">{secondary.map(label).join(", ") || "Ninguno"}</dd></div>
       </dl>}
       {missing.length > 0 && <p role="status" className="text-xs text-primary">Sin equivalencia en este modelo: {[...new Set(missing)].map(label).join(", ")}.</p>}
-      {mode === "heat" && (heat === undefined ? <p role="status" className="text-xs text-muted-foreground">El detalle muscular no está disponible. Aplica la migración de anatomía en Supabase; no se estiman valores a partir de categorías.</p>
+      {mode === "heat" && (heat === undefined ? <p role="status" className="text-xs text-muted-foreground">El detalle muscular no está disponible.</p>
         : <div className="space-y-2">
-          <p className="text-xs text-muted-foreground">Cada serie cuenta una vez en cada músculo indicado por el catálogo. Las secundarias se muestran aparte; no son una medida de fatiga ni de activación fisiológica.</p>
           {heat.length === 0 ? <p className="text-xs text-muted-foreground">Sin series musculares en este periodo.</p> : <ul className="grid gap-1 text-xs sm:grid-cols-2">{heat.map((row) => <li key={row.mesh} className="text-muted-foreground"><span className="text-foreground">{label(row.mesh)}</span>: {row.primary_sets} principales · {row.secondary_sets} secundarias</li>)}</ul>}
         </div>)}
-      <p className="text-[10px] leading-relaxed text-muted-foreground">Modelo derivado de <a href="https://lifesciencedb.jp/bp3d/" target="_blank" rel="noreferrer" className="underline">BodyParts3D</a> (DBCLS, CC BY 4.0) y <a href="https://www.z-anatomy.com/" target="_blank" rel="noreferrer" className="underline">Z-Anatomy</a> (Gauthier Kervyn). <a href="/models/ATTRIBUTION.md" className="underline">Créditos</a> · <a href="https://creativecommons.org/licenses/by-sa/4.0/" target="_blank" rel="noreferrer" className="underline">CC BY-SA 4.0</a>.</p>
+      <a href="/models/ATTRIBUTION.md" target="_blank" rel="noreferrer" className="inline-block text-[10px] text-muted-foreground underline">Créditos y licencia</a>
     </section>
   );
 }

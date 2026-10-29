@@ -13,7 +13,7 @@ The file's embedded `asset` metadata identifies:
   License: https://creativecommons.org/licenses/by-sa/4.0/
 - This combined derivative: **CC BY-SA 4.0**, as declared by its embedded metadata.
 
-GymApp does not modify the supplied GLB. Colors, camera framing and the mapping
+GymRat does not modify the supplied GLB. Colors, camera framing and the mapping
 to exercise groups are applied at runtime. The anatomical model is educational,
 not a validated measurement of muscle activation, fatigue or medical condition.
 

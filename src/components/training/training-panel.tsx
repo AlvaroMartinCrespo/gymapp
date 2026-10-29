@@ -8,9 +8,11 @@ import exercises from "@/db/exercises.json";
 import { MuscleViewer3D } from "@/components/anatomy/muscle-viewer-3d";
 import { useTimer } from "@/components/timer/timer-provider";
 import { Button } from "@/components/ui/button";
+import { summarizeWorkoutDay } from "@/lib/history";
 
 type WorkoutSet = { id: string; set_number: number; weight: number | string; reps: number; is_pr?: boolean };
-type SessionData = { sets: WorkoutSet[]; previous_date: string | null; previous_sets: WorkoutSet[]; completed_at?: string | null; day_set_count?: number };
+type DaySet = WorkoutSet & { exercise_id: string; name: string };
+type SessionData = { sets: WorkoutSet[]; previous_date: string | null; previous_sets: WorkoutSet[]; completed_at?: string | null; day_set_count?: number; day_sets: DaySet[] };
 type SessionState = { key: string; data: SessionData | null; error: string; loginRequired: boolean };
 type PendingSet = {
   payload: { action: "save"; date: string; exerciseId: string; weight: number; reps: number; requestId: string };
@@ -82,6 +84,8 @@ export function TrainingPanel() {
   const ghost = data?.previous_sets.find((entry) => entry.set_number === nextNumber);
   const locked = Boolean(busy) || uncertain;
   const volume = sets.reduce((total, entry) => total + Number(entry.weight) * entry.reps, 0);
+  const dayData = session.key.startsWith(`${date}:`) ? session.data : null;
+  const daySummary = dayData ? summarizeWorkoutDay(dayData.day_sets) : null;
 
   useEffect(() => {
     if (!date) return;
@@ -90,9 +94,25 @@ export function TrainingPanel() {
       try {
         const { response, result } = await workoutRequest({ action: "load", date, exerciseId: exercise.id }, controller.signal);
         if (controller.signal.aborted) return;
+        if (!response.ok) {
+          setSession({ key: queryKey, data: null, error: result.error ?? "No se han podido cargar las series.", loginRequired: response.status === 401 });
+          return;
+        }
+        const historyResponse = await fetch("/api/profile", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action: "history", date }),
+          signal: controller.signal,
+        });
+        const history = await historyResponse.json();
+        if (controller.signal.aborted) return;
+        if (response.ok && (!historyResponse.ok || history.date !== date || !Array.isArray(history.sets))) {
+          setSession({ key: queryKey, data: null, error: history.error ?? "No se ha podido cargar el entrenamiento del día.", loginRequired: historyResponse.status === 401 });
+          return;
+        }
         setSession({
           key: queryKey,
-          data: response.ok ? result : null,
+          data: response.ok ? { ...result, day_sets: history.sets } : null,
           error: response.ok ? "" : result.error ?? "No se han podido cargar las series.",
           loginRequired: response.status === 401,
         });
@@ -195,7 +215,7 @@ export function TrainingPanel() {
         return;
       }
       setSession((current) => current.key === queryKey && current.data ? { ...current, data: { ...current.data, completed_at: result.completed_at } } : current);
-      setMessage(`Entrenamiento del ${formatDate(date)} finalizado. Avisos nuevos: ${result.alerts_created}.`);
+      setMessage(`Entrenamiento del ${formatDate(date)} finalizado.`);
     } catch {
       setError("No se ha podido confirmar la finalización. Puedes reintentarlo sin duplicar avisos.");
     } finally {
@@ -287,6 +307,28 @@ export function TrainingPanel() {
         <Button type="button" variant="outline" className="w-full whitespace-normal rounded-lg sm:w-auto" disabled={!data || locked || Boolean(data.completed_at) || !(data.day_set_count ?? sets.length) || Boolean(weight.trim() || reps.trim())} onClick={() => void finish()}>{busy === "finish" ? <LoaderCircle className="size-4 animate-spin" /> : <CircleCheck className="size-4" />}{busy === "finish" ? "Finalizando..." : "Finalizar entrenamiento"}</Button>
         <Link href="/" className="flex min-h-11 items-center gap-2 text-sm text-muted-foreground hover:text-foreground">Ver perfil y avisos</Link>
       </div>
+      {daySummary && (
+        <section aria-labelledby="day-summary-heading" aria-busy={loading} className="space-y-4 border-t border-border pt-5">
+          <h2 id="day-summary-heading" className="text-base font-semibold">{dayData?.completed_at ? "Resumen del día" : "Ejercicios de hoy"}</h2>
+          <dl className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+            <div><dt className="text-xs text-muted-foreground">Ejercicios</dt><dd className="font-mono tabular-nums">{daySummary.exercises.length}</dd></div>
+            <div><dt className="text-xs text-muted-foreground">Series</dt><dd className="font-mono tabular-nums">{daySummary.sets}</dd></div>
+            <div><dt className="text-xs text-muted-foreground">Repeticiones</dt><dd className="font-mono tabular-nums">{daySummary.repetitions}</dd></div>
+            <div><dt className="text-xs text-muted-foreground">Volumen (kg × reps)</dt><dd className="break-words font-mono tabular-nums">{formatWeight(daySummary.volume)}</dd></div>
+          </dl>
+          {daySummary.exercises.length === 0 && <p className="text-sm text-muted-foreground">Todavía no hay series registradas hoy.</p>}
+          <ul className="divide-y divide-border">
+            {daySummary.exercises.map((entry) => (
+              <li key={entry.id} className="space-y-2 py-3">
+                <button type="button" disabled={locked || loading} onClick={() => chooseExercise(entry.id)} className="min-h-11 max-w-full break-words text-left text-sm font-medium underline-offset-4 hover:underline disabled:opacity-50">{entry.name}</button>
+                <ul className="space-y-1 text-sm text-muted-foreground">
+                  {entry.sets.map((set) => <li key={set.id} className="flex flex-wrap justify-between gap-x-4 gap-y-1"><span>Serie {set.set_number}</span><span className="font-mono tabular-nums">{formatWeight(set.weight)} kg × {set.reps}</span></li>)}
+                </ul>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
     </section>
   );
 }

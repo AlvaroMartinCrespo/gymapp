@@ -1,6 +1,27 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { createWorkoutHandler, validWorkoutDate, validWorkoutInput } from "../src/lib/supabase/workouts.mjs";
+import { summarizeWorkoutDay } from "../src/lib/history.ts";
+
+test("el resumen conserva todos los ejercicios del día y ordena sus series", () => {
+  const sets = [
+    { id: "second", exercise_id: "bench_press", name: "Press banca", set_number: 2, weight: "60", reps: 8 },
+    { id: "squat", exercise_id: "squat", name: "Sentadilla", set_number: 1, weight: 80, reps: 5 },
+    { id: "first", exercise_id: "bench_press", name: "Press banca", set_number: 1, weight: 50, reps: 10 },
+  ];
+  const summary = summarizeWorkoutDay(sets);
+  assert.equal(summary.exercises.length, 2);
+  assert.deepEqual(summary.exercises[0].sets.map((entry) => entry.id), ["first", "second"]);
+  assert.equal(summary.sets, 3);
+  assert.equal(summary.repetitions, 23);
+  assert.equal(summary.volume, 1380);
+  assert.equal(summarizeWorkoutDay(sets.filter((entry) => entry.id !== "squat")).exercises.length, 1);
+  assert.equal(sets[0].id, "second");
+});
+
+test("un día vacío no inventa ejercicios ni totales", () => {
+  assert.deepEqual(summarizeWorkoutDay([]), { exercises: [], sets: 0, repetitions: 0, volume: 0 });
+});
 
 const env = { SUPABASE_URL: "https://project.supabase.co", SUPABASE_PUBLISHABLE_KEY: "sb_publishable_test" };
 const requestId = "00000000-0000-4000-8000-000000000001";

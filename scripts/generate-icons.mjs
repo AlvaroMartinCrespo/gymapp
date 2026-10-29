@@ -4,7 +4,6 @@ import { deflateSync } from "node:zlib";
 import { mkdirSync, writeFileSync } from "node:fs";
 
 const BG = [9, 9, 11];
-const RED = [239, 68, 68];
 
 // Distancia con signo a un rectángulo redondeado (x, y, w, h, r)
 function sdRoundRect(px, py, x, y, w, h, r) {
@@ -16,40 +15,67 @@ function sdRoundRect(px, py, x, y, w, h, r) {
 }
 
 function shapes(size, maskable) {
-  const s = size * (maskable ? 0.6 : 0.72);
-  const o = (size - s) / 2;
-  const cy = size / 2;
-  const barH = s * 0.1;
-  const list = [[o + s * 0.18, cy - barH / 2, s * 0.64, barH, barH / 2]];
-  for (const [x0, x1, h] of [
-    [0.0, 0.1, 0.42],
-    [0.1, 0.18, 0.6],
-    [0.82, 0.9, 0.6],
-    [0.9, 1.0, 0.42],
-  ]) {
-    list.push([o + s * x0, cy - (s * h) / 2, s * (x1 - x0), s * h, s * 0.03]);
-  }
-  return list;
+  const scale = size * (maskable ? 0.76 : 0.96);
+  const offset = (size - scale) / 2;
+  const fur = [174, 180, 191];
+  const pink = [239, 112, 132];
+  const light = [235, 238, 242];
+  const ellipse = (centerX, centerY, radiusX, radiusY, color) => ({
+    color,
+    contains: (pixelX, pixelY) => ((pixelX - offset) / scale - centerX) ** 2 / radiusX ** 2 + ((pixelY - offset) / scale - centerY) ** 2 / radiusY ** 2 <= 1,
+  });
+  const rectangle = (left, top, width, height, radius, color) => ({
+    color,
+    contains: (pixelX, pixelY) => sdRoundRect((pixelX - offset) / scale, (pixelY - offset) / scale, left, top, width, height, radius) <= 0,
+  });
+  return [
+    ellipse(0.5, 0.5, 0.49, 0.49, [239, 68, 68]),
+    ellipse(0.26, 0.3, 0.16, 0.18, BG),
+    ellipse(0.74, 0.3, 0.16, 0.18, BG),
+    ellipse(0.26, 0.3, 0.14, 0.16, fur),
+    ellipse(0.74, 0.3, 0.14, 0.16, fur),
+    ellipse(0.26, 0.3, 0.09, 0.11, pink),
+    ellipse(0.74, 0.3, 0.09, 0.11, pink),
+    ellipse(0.5, 0.55, 0.27, 0.32, BG),
+    ellipse(0.5, 0.54, 0.25, 0.3, fur),
+    ellipse(0.4, 0.5, 0.038, 0.052, BG),
+    ellipse(0.6, 0.5, 0.038, 0.052, BG),
+    ellipse(0.39, 0.48, 0.012, 0.015, light),
+    ellipse(0.59, 0.48, 0.012, 0.015, light),
+    ellipse(0.5, 0.7, 0.16, 0.12, light),
+    ellipse(0.5, 0.73, 0.072, 0.045, BG),
+    rectangle(0.458, 0.73, 0.038, 0.065, 0.007, [255, 255, 255]),
+    rectangle(0.504, 0.73, 0.038, 0.065, 0.007, [255, 255, 255]),
+    ellipse(0.5, 0.65, 0.057, 0.038, BG),
+    ellipse(0.49, 0.642, 0.018, 0.009, pink),
+    rectangle(0.21, 0.65, 0.18, 0.014, 0.007, BG),
+    rectangle(0.19, 0.7, 0.2, 0.014, 0.007, BG),
+    rectangle(0.61, 0.65, 0.18, 0.014, 0.007, BG),
+    rectangle(0.61, 0.7, 0.2, 0.014, 0.007, BG),
+  ];
 }
 
 function render(size, maskable) {
-  const rects = shapes(size, maskable);
+  const layers = shapes(size, maskable);
   const SS = 3; // supersampling 3x3 para bordes suaves
   const raw = Buffer.alloc(size * (size * 3 + 1));
   for (let y = 0; y < size; y++) {
     raw[y * (size * 3 + 1)] = 0; // filtro PNG: none
     for (let x = 0; x < size; x++) {
-      let cover = 0;
+      const channels = [0, 0, 0];
       for (let sy = 0; sy < SS; sy++) {
         for (let sx = 0; sx < SS; sx++) {
           const px = x + (sx + 0.5) / SS;
           const py = y + (sy + 0.5) / SS;
-          if (rects.some(([rx, ry, rw, rh, rr]) => sdRoundRect(px, py, rx, ry, rw, rh, rr) <= 0)) cover++;
+          let color = BG;
+          for (const layer of layers) {
+            if (layer.contains(px, py)) color = layer.color;
+          }
+          for (let channel = 0; channel < 3; channel++) channels[channel] += color[channel];
         }
       }
-      const a = cover / (SS * SS);
       const i = y * (size * 3 + 1) + 1 + x * 3;
-      for (let c = 0; c < 3; c++) raw[i + c] = Math.round(BG[c] * (1 - a) + RED[c] * a);
+      for (let channel = 0; channel < 3; channel++) raw[i + channel] = Math.round(channels[channel] / (SS * SS));
     }
   }
   return raw;

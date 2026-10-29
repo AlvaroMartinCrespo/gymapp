@@ -105,12 +105,14 @@ export function CoachPanel() {
         <Link href="/" title="Volver al perfil" aria-label="Volver al perfil" className="flex size-11 shrink-0 items-center justify-center rounded-lg border border-border outline-none hover:bg-card focus-visible:ring-2 focus-visible:ring-ring md:hidden"><ArrowLeft className="size-4" /></Link>
         <div className="min-w-0 flex-1">
           <h1 id="coach-heading" className="text-2xl font-semibold">Coach IA</h1>
-          <p className="break-all font-mono text-xs text-muted-foreground">qwen/qwen3.8-27b</p>
         </div>
         <Button type="button" size="icon" variant="outline" className="rounded-lg" disabled={sending || messages.length === 0} title="Nueva conversación" aria-label="Nueva conversación" onClick={reset}><Plus className="size-4" /></Button>
       </header>
 
-      <p className="border-l-2 border-border pl-3 text-xs leading-relaxed text-muted-foreground">Se envían a Groq tus mensajes, un resumen de tus últimas cuatro semanas y tus alertas pendientes, sin email ni identificador de cuenta. Evita compartir datos personales. No sustituye una valoración médica.</p>
+      <details className="text-xs leading-relaxed text-muted-foreground">
+        <summary className="w-fit cursor-pointer">Privacidad</summary>
+        <p className="mt-2">Un proveedor externo procesa tus mensajes y tu resumen de entrenamiento, sin email ni identificador de cuenta. Evita compartir datos personales. No sustituye una valoración médica.</p>
+      </details>
 
       {messages.length === 0 && (
         <div className="grid gap-2 border-y border-border py-5 sm:grid-cols-3">
