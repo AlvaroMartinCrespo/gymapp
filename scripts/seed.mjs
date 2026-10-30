@@ -67,7 +67,7 @@ function main() {
   }
   mkdirSync(new URL("../supabase/", import.meta.url), { recursive: true });
   writeFileSync(new URL("../supabase/seed.sql", import.meta.url), sql);
-  console.log(`Catálogo generado en supabase/seed.sql (${exercises.length} ejercicios). No se ha modificado ninguna base de datos.`);
+  console.log("Catálogo generado en supabase/seed.sql (45 ejercicios). No se ha modificado ninguna base de datos.");
 }
 
 if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {

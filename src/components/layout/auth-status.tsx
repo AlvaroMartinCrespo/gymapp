@@ -78,20 +78,20 @@ export function AuthStatus() {
   }
 
   return (
-    <header className="mb-6 flex min-h-11 flex-wrap items-center justify-end gap-x-3 gap-y-1 border-b border-border pb-3 text-sm">
+    <div className="ml-auto flex min-w-0 max-w-full flex-col items-end text-sm">
       {loading ? (
         <span role="status" className="flex min-h-11 items-center gap-2 text-muted-foreground"><LoaderCircle className="size-4 animate-spin" />Comprobando sesión...</span>
       ) : user ? (
-        <>
+        <div className="flex min-w-0 items-center gap-3">
           <span className="flex min-w-0 max-w-full items-center gap-2"><UserRound className="size-4 shrink-0 text-muted-foreground" /><span className="truncate">{user.username ?? user.email ?? "Mi cuenta"}</span></span>
           <button type="button" onClick={logout} disabled={busy} title="Cerrar sesión" aria-label="Cerrar sesión" className="flex size-11 shrink-0 items-center justify-center rounded-lg text-muted-foreground outline-none hover:bg-card hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50">
             {busy ? <LoaderCircle className="size-4 animate-spin" /> : <LogOut className="size-4" />}
           </button>
-        </>
+        </div>
       ) : (
         <Link href="/acceso" className="flex min-h-11 items-center gap-2 rounded-lg px-2 outline-none hover:text-primary focus-visible:ring-2 focus-visible:ring-ring"><LogIn className="size-4" />Acceder</Link>
       )}
-      {error && <p role="alert" className="w-full break-words text-right text-xs text-primary">{error}</p>}
-    </header>
+      {error && <p role="alert" className="mt-1 max-w-full break-words text-right text-xs text-primary">{error}</p>}
+    </div>
   );
 }

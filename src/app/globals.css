@@ -55,6 +55,19 @@
   --font-mono: var(--font-geist-mono);
 }
 
+@layer components {
+  .section-heading {
+    font-size: 1.125rem;
+    line-height: 1.75rem;
+    font-weight: 700;
+  }
+
+  .section-divider {
+    border-top: 1px solid var(--border);
+    padding-top: 1.25rem;
+  }
+}
+
 @layer base {
   * {
     @apply border-border outline-ring/50;

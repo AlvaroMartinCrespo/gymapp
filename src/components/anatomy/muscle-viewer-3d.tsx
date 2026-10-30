@@ -75,7 +75,7 @@ export function MuscleViewer3D({ primary = [], secondary = [], camera = "front",
   return (
     <section aria-labelledby={headingId} className="min-w-0 space-y-3 rounded-2xl border border-border bg-background p-4">
       <header className="space-y-1">
-        <h2 id={headingId} className="text-base font-semibold">{title}</h2>
+        <h2 id={headingId} className="section-heading">{title}</h2>
       </header>
       <div className="relative h-[360px] overflow-hidden rounded-xl border border-border sm:h-[440px]" aria-busy={status === "loading"}>
         {status !== "error" && <iframe

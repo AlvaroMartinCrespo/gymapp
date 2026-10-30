@@ -99,7 +99,7 @@ export function RankingsPanel() {
           {busy && <LoaderCircle className="size-4 shrink-0 animate-spin" aria-label="Guardando participación" />}
         </label>
         <section aria-label={`Clasificación de ${selected.name}`} className="space-y-4">
-          <div className="flex flex-wrap items-baseline justify-between gap-2"><h2 className="text-lg font-semibold">{selected.name}</h2><p className="text-sm text-muted-foreground">{format.format(data.total)} participantes · Sesiones finalizadas</p></div>
+          <div className="flex flex-wrap items-baseline justify-between gap-2"><h2 className="section-heading">{selected.name}</h2><p className="text-sm text-muted-foreground">{format.format(data.total)} participantes · Sesiones finalizadas</p></div>
           {data.entries.length === 0 ? <p className="py-8 text-center text-muted-foreground">{data.total === 0 ? "Aún no hay marcas publicadas." : "No hay resultados en esta página."}</p> : <ol className="divide-y border-y">
             {data.entries.map((entry) => <li key={entry.username} className={`grid grid-cols-[2.5rem_minmax(0,1fr)_auto] items-center gap-3 py-4 ${entry.is_me ? "bg-primary/5" : ""}`}>
               <span className="text-center font-semibold tabular-nums">{entry.position <= 3 ? <span className="inline-flex flex-col items-center"><Trophy aria-hidden="true" className={`size-4 ${entry.position === 1 ? "text-amber-500" : entry.position === 2 ? "text-zinc-400" : "text-rose-600"}`} />{entry.position}</span> : entry.position}</span>

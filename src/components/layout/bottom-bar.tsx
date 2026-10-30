@@ -12,7 +12,7 @@ export function BottomBar() {
   return (
     <nav
       aria-label="Navegación principal"
-      className="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-background/85 pb-[env(safe-area-inset-bottom)] backdrop-blur-xl md:hidden"
+      className="fixed bottom-0 left-0 right-0 z-50 border-t border-border bg-background/85 pb-[env(safe-area-inset-bottom)] backdrop-blur-xl md:hidden"
     >
       <ul className="mx-auto flex max-w-md items-stretch justify-around px-2">
         {BOTTOM_BAR_ITEMS.map(({ href, label, icon: Icon }) => {

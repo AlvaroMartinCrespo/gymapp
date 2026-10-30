@@ -37,9 +37,9 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html
       lang="es"
-      className={`${GeistSans.variable} ${GeistMono.variable} dark h-full antialiased`}
+      className={`${GeistSans.variable} ${GeistMono.variable} dark min-h-dvh antialiased`}
     >
-      <body className="min-h-full">
+      <body className="min-h-dvh">
         <AppShell>{children}</AppShell>
       </body>
     </html>

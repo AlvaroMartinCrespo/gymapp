@@ -87,7 +87,7 @@ export function HistoryPanel() {
         <div className="min-w-0 space-y-4">
           <div className="flex items-center gap-2">
             <Button type="button" size="icon" variant="ghost" className="rounded-lg" title="Mes anterior" aria-label="Mes anterior" disabled={!previous} onClick={() => previous && setSelected(previous)}><ChevronLeft className="size-5" /></Button>
-            <h2 className="min-w-0 flex-1 text-center text-base font-semibold capitalize" aria-live="polite">{date ? dateLabel(date, true) : "Calendario"}</h2>
+            <h2 className="min-w-0 flex-1 text-center capitalize section-heading" aria-live="polite">{date ? dateLabel(date, true) : "Calendario"}</h2>
             <Button type="button" size="icon" variant="ghost" className="rounded-lg" title="Mes siguiente" aria-label="Mes siguiente" disabled={!next} onClick={() => next && setSelected(next)}><ChevronRight className="size-5" /></Button>
           </div>
 
@@ -115,7 +115,7 @@ export function HistoryPanel() {
         </div>
 
         <div aria-busy={loading} className="min-w-0 space-y-5 border-t border-border pt-5 lg:border-l lg:border-t-0 lg:pl-7 lg:pt-0">
-          <h2 className="text-base font-semibold">{date ? dateLabel(date) : "Entrenamiento"}</h2>
+          <h2 className="section-heading">{date ? dateLabel(date) : "Entrenamiento"}</h2>
           {loading ? <p role="status" className="flex min-h-32 items-center gap-2 text-sm text-muted-foreground"><LoaderCircle className="size-4 animate-spin" />Cargando historial...</p>
             : !data ? <div className="space-y-4"><p role="alert" className="break-words text-sm text-primary">{view.error}</p>{view.loginRequired && <Button asChild className="rounded-lg"><Link href="/acceso"><LogIn className="size-4" />Iniciar sesión</Link></Button>}</div>
             : data.sets.length === 0 ? <div className="space-y-4"><p className="text-sm text-muted-foreground">Sin series registradas este día.</p><Button asChild variant="outline" className="rounded-lg"><Link href="/entrenar"><Dumbbell className="size-4" />Entrenar hoy</Link></Button></div>

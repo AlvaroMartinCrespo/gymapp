@@ -260,7 +260,7 @@ export function TrainingPanel() {
 
       <div aria-busy={loading} className="border-t border-border pt-5">
         <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
-          <h2 className="flex items-center gap-2 text-base font-semibold"><Dumbbell className="size-4 text-primary" />Series de hoy</h2>
+          <h2 className="flex items-center gap-2 section-heading"><Dumbbell className="size-4 text-primary" />Series de hoy</h2>
           {data && <p className="text-sm text-muted-foreground">{sets.length} series · {formatWeight(volume)} kg</p>}
         </div>
         {loading ? <p role="status" className="flex min-h-16 items-center gap-2 text-sm text-muted-foreground"><LoaderCircle className="size-4 animate-spin" />Cargando series...</p> : session.error ? <p role="alert" className="break-words text-sm text-primary">{session.error}</p> : sets.length === 0 ? <p className="py-4 text-sm text-muted-foreground">Sin series registradas.</p> : (
@@ -283,7 +283,7 @@ export function TrainingPanel() {
 
       <form onSubmit={save} className="space-y-5 border-t border-border pt-5">
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <h2 className="text-base font-semibold">Serie {nextNumber}</h2>
+          <h2 className="section-heading">Serie {nextNumber}</h2>
           {data?.previous_date && <p className="text-xs text-muted-foreground">Última sesión: {formatDate(data.previous_date)}</p>}
         </div>
         <fieldset disabled={!data || locked} className="grid grid-cols-2 gap-3">
@@ -308,8 +308,8 @@ export function TrainingPanel() {
         <Link href="/" className="flex min-h-11 items-center gap-2 text-sm text-muted-foreground hover:text-foreground">Ver perfil y avisos</Link>
       </div>
       {daySummary && (
-        <section aria-labelledby="day-summary-heading" aria-busy={loading} className="space-y-4 border-t border-border pt-5">
-          <h2 id="day-summary-heading" className="text-base font-semibold">{dayData?.completed_at ? "Resumen del día" : "Ejercicios de hoy"}</h2>
+        <section aria-labelledby="day-summary-heading" aria-busy={loading} className="space-y-4 section-divider">
+          <h2 id="day-summary-heading" className="section-heading">{dayData?.completed_at ? "Resumen del día" : "Ejercicios de hoy"}</h2>
           <dl className="grid grid-cols-2 gap-4 sm:grid-cols-4">
             <div><dt className="text-xs text-muted-foreground">Ejercicios</dt><dd className="font-mono tabular-nums">{daySummary.exercises.length}</dd></div>
             <div><dt className="text-xs text-muted-foreground">Series</dt><dd className="font-mono tabular-nums">{daySummary.sets}</dd></div>

@@ -118,7 +118,7 @@ export function RecapPanel() {
           {data.current.sets === 0 && <p role="status" className="text-sm text-muted-foreground">Sin series registradas en este periodo.</p>}
 
           <section aria-labelledby="recap-volume-heading" className="min-w-0 space-y-4">
-            <header><h2 id="recap-volume-heading" className="text-base font-semibold">Volumen {period === "year" ? "mensual" : "diario"}</h2><p className="mt-1 text-xs text-muted-foreground">kg · rep</p></header>
+            <header><h2 id="recap-volume-heading" className="section-heading">Volumen {period === "year" ? "mensual" : "diario"}</h2><p className="mt-1 text-xs text-muted-foreground">kg · rep</p></header>
             <ol className="space-y-3">
               {data.buckets.map((bucket) => <li key={bucket.date} className="grid min-h-6 grid-cols-[minmax(0,5rem)_minmax(0,1fr)_minmax(0,6rem)] items-center gap-3"><time dateTime={bucket.date} title={dateLabel(bucket.date)} className="text-xs text-muted-foreground">{period === "year" ? dateLabel(bucket.date, true) : new Date(`${bucket.date}T12:00:00`).toLocaleDateString("es-ES", { day: "numeric", month: "short" })}</time><Bar value={bucket.volume} maximum={maxVolume} label={`Volumen de ${dateLabel(bucket.date, period === "year")}`} /><span className="break-all text-right text-xs tabular-nums">{numberLabel(bucket.volume)}</span></li>)}
             </ol>
@@ -126,8 +126,8 @@ export function RecapPanel() {
 
           <MuscleViewer3D mode="heat" heat={data.muscles} title="Frecuencia muscular del periodo" />
 
-          <section aria-labelledby="recap-categories-heading" className="min-w-0 space-y-4 border-t border-border pt-5">
-            <h2 id="recap-categories-heading" className="text-base font-semibold">Series por grupo muscular</h2>
+          <section aria-labelledby="recap-categories-heading" className="min-w-0 space-y-4 section-divider">
+            <h2 id="recap-categories-heading" className="section-heading">Series por grupo muscular</h2>
             <ol className="space-y-3">{data.categories.map((category) => <li key={category.category} className="grid min-h-6 grid-cols-[minmax(0,5rem)_minmax(0,1fr)_minmax(0,6rem)] items-center gap-3"><span className="break-words text-xs text-muted-foreground">{category.category}</span><Bar value={category.sets} maximum={maxSets} label={`Series de ${category.category}`} /><span className="break-all text-right text-xs tabular-nums">{numberLabel(category.sets)}</span></li>)}</ol>
           </section>
         </>}
