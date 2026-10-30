@@ -20,9 +20,9 @@ test("el GLB real tiene cabecera, versión, licencia y mallas independientes vá
   assert.ok(document.extensionsRequired.includes("EXT_meshopt_compression"));
 });
 
-test("todos los músculos de los 45 ejercicios existen en el modelo real", () => {
+test("todos los músculos de los 48 ejercicios existen en el modelo real", () => {
   const mapped = new Set(document.meshes.map((mesh) => muscleForName(mesh.name)).filter(Boolean));
-  assert.equal(catalog.length, 45);
+  assert.equal(catalog.length, 48);
   for (const exercise of catalog) {
     for (const id of [...exercise.primaryMeshes, ...exercise.secondaryMeshes]) {
       assert.ok(Object.hasOwn(muscleGroups, id), `${exercise.id}: ${id} desconocido`);

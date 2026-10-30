@@ -4,8 +4,8 @@ import { spawnSync } from "node:child_process";
 import { test } from "node:test";
 import { createSeedSql, exercises } from "./seed.mjs";
 
-test("el catálogo contiene 45 ejercicios en las siete categorías del esquema", () => {
-  assert.equal(exercises.length, 45);
+test("el catálogo contiene 48 ejercicios en las siete categorías del esquema", () => {
+  assert.equal(exercises.length, 48);
   const schema = readFileSync(new URL("../src/db/schema.ts", import.meta.url), "utf8");
   const categoryBlock = schema.match(/export const CATEGORIES = \[([\s\S]*?)\] as const/);
   assert.ok(categoryBlock);
@@ -50,7 +50,7 @@ SELECT count(*) FROM exercises_catalog WHERE NOT json_valid(primary_meshes) OR N
   assert.ifError(result.error);
   assert.equal(result.status, 0, result.stderr);
   assert.deepEqual(result.stdout.trim().split("\n"), [
-    "45", "Press de banca actualizado", "bench_press:60.0:10", "0", "0",
+    "48", "Press de banca actualizado", "bench_press:60.0:10", "0", "0",
   ]);
 });
 
