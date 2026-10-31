@@ -6,7 +6,7 @@ import { createRankingsHandler, validRankingInput } from "../src/lib/supabase/ra
 const env = { SUPABASE_URL: "https://project.supabase.co", SUPABASE_PUBLISHABLE_KEY: "sb_publishable_test" };
 const user = { id: "user" };
 const payload = { action: "load", exerciseId: "bench_press", metric: "weight", page: 0 };
-const result = { exercise_id: "bench_press", metric: "weight", page: 0, enabled: false, total: 1, entries: [{ username: "athlete", weight: 60, reps: 10, position: 1, is_me: false }], personal: { weight: 50, reps: 8, position: null } };
+const result = { exercise_id: "bench_press", metric: "weight", page: 0, enabled: false, total: 1, entries: [{ username: "athlete", avatar_url: "https://img.test/a.png", weight: 60, reps: 10, position: 1, is_me: false }], personal: { weight: 50, reps: 8, position: null } };
 const request = (body = payload, headers = {}) => new Request("https://gymapp.test/api/rankings", { method: "POST", headers: { origin: "https://gymapp.test", "content-type": "application/json", cookie: "gymapp-access=current", ...headers }, body: JSON.stringify(body) });
 
 test("rankings valida métrica, página y consentimiento explícito", () => {
@@ -26,6 +26,29 @@ test("rankings usa JWT propio, no admite identidad ni consentimiento implícito 
   assert.equal(response.status, 200);
   assert.match(response.headers.get("cache-control"), /no-store/);
   assert.deepEqual(await response.json(), result);
+});
+
+test("rankings expone la foto HTTPS y descarta URLs no válidas o ausentes sin romper el ranking", async () => {
+  const entries = [
+    { ...result.entries[0], username: "con_foto" },
+    { ...result.entries[0], username: "sin_foto", avatar_url: null },
+    { ...result.entries[0], username: "foto_http", avatar_url: "http://img.test/a.png" },
+    { ...result.entries[0], username: "foto_script", avatar_url: "javascript:alert(1)" },
+    { ...result.entries[0], username: "sin_campo", avatar_url: undefined },
+  ];
+  const handler = createRankingsHandler({ env, fetcher: async (url) => Response.json(url.pathname === "/auth/v1/user" ? user : { ...result, total: 5, entries }) });
+  const response = await handler(request());
+  assert.equal(response.status, 200);
+  assert.deepEqual((await response.json()).entries.map((entry) => entry.avatar_url), ["https://img.test/a.png", null, null, null, null]);
+});
+
+test("la migración de fotos mantiene el agregado y solo añade avatar_url", () => {
+  const sql = readFileSync(new URL("../supabase/migrations/20261031020000_rankings_avatar.sql", import.meta.url), "utf8");
+  assert.match(sql, /create or replace function public.get_rankings\(p_exercise_id text, p_metric text, p_page integer default 0, p_enabled boolean default null\)/);
+  assert.match(sql, /profiles.username, profiles.avatar_url, profiles.rankings_enabled/);
+  assert.match(sql, /select position, username, avatar_url, weight, reps/);
+  assert.match(sql, /from best where rankings_enabled/);
+  assert.match(sql, /revoke all on function public.get_rankings.*from public, anon/);
 });
 
 test("la participación solo envía un booleano y conserva las cookies renovadas", async () => {

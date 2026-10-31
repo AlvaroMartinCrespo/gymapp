@@ -2,6 +2,15 @@ import { createAuthHandler } from "./auth.mjs";
 
 const validPair = (value) => value && typeof value.weight === "number" && Number.isFinite(value.weight) && value.weight >= 0 && value.weight <= 10000 && Number.isInteger(value.reps) && value.reps > 0 && value.reps <= 1000;
 
+// La foto es opcional: si falta o no es una URL HTTPS válida se descarta (null) sin tumbar el ranking.
+const safeAvatar = (value) => {
+  if (typeof value !== "string" || value.length > 2048 || /\s/.test(value)) return null;
+  try {
+    const url = new URL(value);
+    return url.protocol === "https:" && url.hostname && !url.username && !url.password ? url.href : null;
+  } catch { return null; }
+};
+
 export function validRankingInput(body) {
   return body && typeof body === "object" && !Array.isArray(body) &&
     ["load", "participation"].includes(body.action) && typeof body.exerciseId === "string" && /^[a-z][a-z0-9_]{0,79}$/.test(body.exerciseId) &&
@@ -47,7 +56,7 @@ export function createRankingsHandler({ env = process.env, fetcher = fetch } = {
           (body.action === "participation" && result.enabled !== body.enabled)) throw new Error("Invalid ranking response");
         const pair = (value) => ({ weight: value.weight, reps: value.reps, position: value.position });
         return reply({ exercise_id: result.exercise_id, metric: result.metric, page: result.page, enabled: result.enabled, total: result.total,
-          entries: result.entries.map((entry) => ({ ...pair(entry), username: entry.username, is_me: entry.is_me })),
+          entries: result.entries.map((entry) => ({ ...pair(entry), username: entry.username, avatar_url: safeAvatar(entry.avatar_url), is_me: entry.is_me })),
           personal: result.personal === null ? null : pair(result.personal) });
       } catch { return reply({ error: "No se ha podido confirmar la clasificación ni los cambios de participación. Reintenta la consulta." }, 503); }
     } });

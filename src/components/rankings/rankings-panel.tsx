@@ -2,15 +2,27 @@
 
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
-import { ArrowLeft, ArrowRight, LoaderCircle, RefreshCw, Trophy } from "lucide-react";
+import Image from "next/image";
+import { ArrowLeft, ArrowRight, LoaderCircle, RefreshCw, Trophy, UserRound } from "lucide-react";
 import exercises from "@/db/exercises.json";
 import { Button } from "@/components/ui/button";
 
-type Entry = { username: string; weight: number; reps: number; position: number; is_me: boolean };
+type Entry = { username: string; avatar_url: string | null; weight: number; reps: number; position: number; is_me: boolean };
 type Rankings = { enabled: boolean; total: number; entries: Entry[]; personal: { weight: number; reps: number; position: number | null } | null };
 type View = { key: string; data: Rankings | null; error: string; login: boolean };
 const categories = [...new Set(exercises.map((exercise) => exercise.category))];
 const format = new Intl.NumberFormat("es-ES", { maximumFractionDigits: 2 });
+
+function Avatar({ url, name }: { url: string | null; name: string }) {
+  const [failed, setFailed] = useState(false);
+  return (
+    <span className="flex size-10 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-border bg-card">
+      {url && !failed ? (
+        <Image src={url} width={40} height={40} alt={`Foto de ${name}`} unoptimized loading="lazy" referrerPolicy="no-referrer" onError={() => setFailed(true)} className="size-10 object-cover" />
+      ) : <UserRound className="size-5 text-muted-foreground" aria-hidden="true" />}
+    </span>
+  );
+}
 
 export function RankingsPanel() {
   const [category, setCategory] = useState(categories[0]);
@@ -103,7 +115,10 @@ export function RankingsPanel() {
           {data.entries.length === 0 ? <p className="py-8 text-center text-muted-foreground">{data.total === 0 ? "Aún no hay marcas publicadas." : "No hay resultados en esta página."}</p> : <ol className="divide-y border-y">
             {data.entries.map((entry) => <li key={entry.username} className={`grid grid-cols-[2.5rem_minmax(0,1fr)_auto] items-center gap-3 py-4 ${entry.is_me ? "bg-primary/5" : ""}`}>
               <span className="text-center font-semibold tabular-nums">{entry.position <= 3 ? <span className="inline-flex flex-col items-center"><Trophy aria-hidden="true" className={`size-4 ${entry.position === 1 ? "text-amber-500" : entry.position === 2 ? "text-zinc-400" : "text-rose-600"}`} />{entry.position}</span> : entry.position}</span>
-              <span className="min-w-0 break-all font-medium">{entry.username}{entry.is_me && <span className="ml-2 text-xs text-muted-foreground">Tú</span>}</span>
+              <span className="flex min-w-0 items-center gap-3">
+                <Avatar key={entry.avatar_url ?? "none"} url={entry.avatar_url} name={entry.username} />
+                <span className="min-w-0 break-all font-medium">{entry.username}{entry.is_me && <span className="ml-2 text-xs text-muted-foreground">Tú</span>}</span>
+              </span>
               <span className="text-right text-sm tabular-nums"><strong>{metric === "weight" ? `${format.format(entry.weight)} kg` : `${entry.reps} reps`}</strong><br /><span className="text-muted-foreground">{metric === "weight" ? `${entry.reps} reps` : `${format.format(entry.weight)} kg`}</span></span>
             </li>)}
           </ol>}
