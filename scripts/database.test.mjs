@@ -120,3 +120,18 @@ test("RLS real en una base Supabase de pruebas ya migrada", {
   assert.ifError(result.error);
   assert.equal(result.status, 0, "Falló la prueba PostgreSQL/RLS; revisa la base de pruebas y sus permisos.");
 });
+const autoFinish = readFileSync(new URL("../supabase/migrations/20261030000000_auto_finish_workouts.sql", import.meta.url), "utf8");
+const autoFinishCron = readFileSync(new URL("../supabase/cron/auto_finish_workouts.sql", import.meta.url), "utf8");
+
+test("la finalización automática solo toca días pasados y no se concede a clientes", () => {
+  assert.match(autoFinish, /create function public\.finish_workout_core\(request_user uuid, p_date date\)/);
+  assert.match(autoFinish, /create or replace function public\.finish_workout\(p_date date\)[\s\S]*request_user uuid := auth\.uid\(\)[\s\S]*return public\.finish_workout_core\(request_user, p_date\)/);
+  assert.match(autoFinish, /logs\.completed_at is null and logs\.date < cutoff/);
+  assert.match(autoFinish, /exists \(select 1 from public\.workout_sets as sets where sets\.workout_log_id = logs\.id\)/);
+  assert.match(autoFinish, /order by logs\.user_id, logs\.date\s+limit 500/);
+  assert.match(autoFinish, /revoke all on function public\.finish_workout_core\(uuid, date\) from public, anon, authenticated/);
+  assert.match(autoFinish, /revoke all on function public\.auto_finish_past_workouts\(\) from public, anon, authenticated/);
+  assert.doesNotMatch(autoFinish, /grant execute on function public\.(finish_workout_core|auto_finish_past_workouts)/);
+  assert.match(autoFinish, /grant execute on function public\.finish_workout\(date\) to authenticated/);
+  assert.match(autoFinishCron, /cron\.schedule\(\s*'auto-finish-workouts'/);
+});
