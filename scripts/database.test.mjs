@@ -135,3 +135,79 @@ test("la finalización automática solo toca días pasados y no se concede a cli
   assert.match(autoFinish, /grant execute on function public\.finish_workout\(date\) to authenticated/);
   assert.match(autoFinishCron, /cron\.schedule\(\s*'auto-finish-workouts'/);
 });
+
+const cardio = readFileSync(new URL("../supabase/migrations/20261031000000_cardio_sessions.sql", import.meta.url), "utf8");
+const schemaTs = readFileSync(new URL("../src/db/schema.ts", import.meta.url), "utf8");
+
+test("el cardio cuelga del log del día, con RLS por propietario y sin fecha duplicada", () => {
+  assert.match(cardio, /create table public\.cardio_sessions/);
+  assert.match(cardio, /workout_log_id uuid not null references public\.workout_logs\(id\) on delete cascade/);
+  assert.doesNotMatch(cardio, /\n\s+date date/);
+  assert.match(cardio, /alter table public\.cardio_sessions enable row level security/);
+  assert.match(cardio, /revoke all on public\.cardio_sessions from public, anon, authenticated/);
+  assert.match(cardio, /workout_logs\.user_id = \(select auth\.uid\(\)\)/);
+  assert.doesNotMatch(cardio, /security definer/);
+  assert.doesNotMatch(cardio, /grant[^;]*\bto anon\b/);
+});
+
+test("el cardio usa un catálogo cerrado y restricciones de datos razonables", () => {
+  for (const activity of ["treadmill", "running", "walking", "stationary_bike", "elliptical", "rowing", "jump_rope", "swimming"]) {
+    assert.ok(cardio.includes(`'${activity}'`), activity);
+    assert.ok(schemaTs.includes(`"${activity}"`), `schema.ts ${activity}`);
+  }
+  assert.match(cardio, /duration_seconds between 1 and 86400/);
+  assert.match(cardio, /rpe between 1 and 10/);
+  assert.match(cardio, /max_hr >= avg_hr/);
+  assert.match(cardio, /unique index cardio_sessions_request_uq on public\.cardio_sessions \(workout_log_id, client_request_id\)/);
+});
+
+test("el origen sensor está reservado al servidor y la sesión no migra de entrenamiento", () => {
+  assert.match(cardio, /data_source in \('manual', 'estimated'\)/);
+  const updateGrant = cardio.match(/grant update \(([^)]*)\)\s+on public\.cardio_sessions/);
+  assert.ok(updateGrant, "falta el grant update por columnas");
+  assert.doesNotMatch(updateGrant[1], /workout_log_id/);
+  assert.doesNotMatch(cardio, /grant (?:insert|update) \([^)]*\bcreated_at\b/);
+});
+
+test("el cardio no altera las funciones de fuerza", () => {
+  const code = cardio.replace(/^\s*--.*$/gm, "");
+  assert.doesNotMatch(code, /create (?:or replace )?function/);
+  assert.doesNotMatch(code, /workout_sets/);
+});
+
+const cardioOps = readFileSync(new URL("../supabase/migrations/20261031010000_cardio_operations.sql", import.meta.url), "utf8");
+
+test("las operaciones de cardio son security invoker, idempotentes y sin acceso anónimo", () => {
+  assert.match(cardioOps, /create function public\.save_cardio_session\(/);
+  assert.match(cardioOps, /create function public\.get_recent_cardio\(/);
+  const ops = cardioOps.replace(/^\s*--.*$/gm, "");
+  assert.doesNotMatch(ops, /security definer/);
+  assert.equal((ops.match(/security invoker/g) ?? []).length, 2);
+  assert.equal((ops.match(/set search_path = ''/g) ?? []).length, 2);
+  assert.match(cardioOps, /on conflict \(user_id, date\) do update set date = excluded\.date/);
+  assert.match(cardioOps, /client_request_id = p_request_id/);
+  assert.match(cardioOps, /Request already used with different data/);
+  assert.match(cardioOps, /revoke all on function public\.save_cardio_session\([^)]*\) from public, anon/);
+  assert.match(cardioOps, /revoke all on function public\.get_recent_cardio\(integer\) from public, anon/);
+  assert.match(cardioOps, /grant execute on function public\.save_cardio_session\([^)]*\) to authenticated/);
+  assert.match(cardioOps, /grant execute on function public\.get_recent_cardio\(integer\) to authenticated/);
+  assert.doesNotMatch(cardioOps, /grant[^;]*\bto anon\b/);
+});
+
+test("las operaciones de cardio validan lo mismo que la tabla y no aceptan 'sensor'", () => {
+  for (const activity of ["treadmill", "running", "walking", "stationary_bike", "elliptical", "rowing", "jump_rope", "swimming"]) assert.ok(cardioOps.includes(`'${activity}'`), activity);
+  assert.match(cardioOps, /p_duration_seconds not between 1 and 86400/);
+  assert.match(cardioOps, /p_data_source not in \('manual', 'estimated'\)/);
+  assert.match(cardioOps, /p_data_source = 'estimated' and p_calories is null/);
+  assert.match(cardioOps, /p_rpe not between 1 and 10/);
+  assert.match(cardioOps, /p_max_hr < p_avg_hr/);
+  assert.match(cardioOps, /least\(coalesce\(p_limit, 30\), 100\)/);
+});
+
+test("las operaciones de cardio no tocan las tablas ni las funciones de fuerza", () => {
+  const code = cardioOps.replace(/^\s*--.*$/gm, "");
+  assert.doesNotMatch(code, /workout_sets/);
+  assert.doesNotMatch(code, /create or replace function/);
+  assert.doesNotMatch(code, /(?:alter|drop) (?:table|function)/);
+  assert.doesNotMatch(code, /\b(?:insert into|update|delete from) public\.workout_sets\b/);
+});

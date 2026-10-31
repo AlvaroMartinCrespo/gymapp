@@ -8,6 +8,7 @@ import {
   numeric,
   pgTable,
   primaryKey,
+  smallint,
   text,
   timestamp,
   uniqueIndex,
@@ -24,6 +25,22 @@ export const CATEGORIES = [
   "Core",
 ] as const;
 export type Category = (typeof CATEGORIES)[number];
+
+export const CARDIO_ACTIVITIES = [
+  "treadmill",
+  "running",
+  "walking",
+  "stationary_bike",
+  "elliptical",
+  "rowing",
+  "jump_rope",
+  "swimming",
+] as const;
+export type CardioActivity = (typeof CARDIO_ACTIVITIES)[number];
+
+// 'sensor' está reservado al servidor: los clientes solo escriben 'manual' o 'estimated'.
+export const CARDIO_DATA_SOURCES = ["manual", "estimated", "sensor"] as const;
+export type CardioDataSource = (typeof CARDIO_DATA_SOURCES)[number];
 
 const id = () =>
   uuid("id")
@@ -110,6 +127,31 @@ export const workoutSets = pgTable(
     index("workout_sets_exercise_idx").on(t.exerciseId),
     uniqueIndex("workout_sets_number_uq").on(t.workoutLogId, t.exerciseId, t.setNumber),
     uniqueIndex("workout_sets_request_uq").on(t.workoutLogId, t.clientRequestId),
+  ],
+);
+
+// La fecha vive en workout_logs.date; la sesión cuelga del log del día.
+export const cardioSessions = pgTable(
+  "cardio_sessions",
+  {
+    id: id(),
+    workoutLogId: uuid("workout_log_id")
+      .notNull()
+      .references(() => workoutLogs.id, { onDelete: "cascade" }),
+    activityType: text("activity_type", { enum: CARDIO_ACTIVITIES }).notNull(),
+    durationSeconds: integer("duration_seconds").notNull(),
+    distanceKm: numeric("distance_km", { precision: 7, scale: 3 }),
+    avgHr: smallint("avg_hr"),
+    maxHr: smallint("max_hr"),
+    calories: integer("calories"),
+    dataSource: text("data_source", { enum: CARDIO_DATA_SOURCES }).notNull().default("manual"),
+    rpe: smallint("rpe"),
+    clientRequestId: uuid("client_request_id"),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    index("cardio_sessions_log_idx").on(t.workoutLogId),
+    uniqueIndex("cardio_sessions_request_uq").on(t.workoutLogId, t.clientRequestId),
   ],
 );
 

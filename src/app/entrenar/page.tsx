@@ -1,7 +1,7 @@
-import { TrainingPanel } from "@/components/training/training-panel";
+import { TrainingTabs } from "@/components/training/training-tabs";
 
 export const metadata = { title: "Entrenar" };
 
 export default function Page() {
-  return <TrainingPanel />;
+  return <TrainingTabs />;
 }

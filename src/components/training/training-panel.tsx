@@ -1,12 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useRef, useState, useSyncExternalStore, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import { Check, CircleCheck, Copy, Dumbbell, LoaderCircle, LogIn, Plus, RefreshCw, Trash2 } from "lucide-react";
 
 import exercises from "@/db/exercises.json";
 import { MuscleViewer3D } from "@/components/anatomy/muscle-viewer-3d";
 import { useTimer } from "@/components/timer/timer-provider";
+import { useLocalDate } from "@/components/training/use-local-date";
 import { Button } from "@/components/ui/button";
 import { summarizeWorkoutDay } from "@/lib/history";
 
@@ -23,22 +24,6 @@ type PendingSet = {
 const categories = [...new Set(exercises.map((exercise) => exercise.category))];
 const restOptions = [60, 90, 120, 180, 300];
 const inputClass = "h-12 w-full min-w-0 rounded-lg border border-input bg-card px-3 text-base outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50";
-
-function localDate() {
-  const date = new Date();
-  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
-}
-
-function subscribeDate(callback: () => void) {
-  const interval = window.setInterval(callback, 60000);
-  window.addEventListener("focus", callback);
-  document.addEventListener("visibilitychange", callback);
-  return () => {
-    window.clearInterval(interval);
-    window.removeEventListener("focus", callback);
-    document.removeEventListener("visibilitychange", callback);
-  };
-}
 
 function formatWeight(weight: number | string) {
   return Number(weight).toLocaleString("es-ES", { maximumFractionDigits: 2 });
@@ -59,7 +44,7 @@ async function workoutRequest(body: object, signal?: AbortSignal) {
 }
 
 export function TrainingPanel() {
-  const date = useSyncExternalStore(subscribeDate, localDate, () => "");
+  const date = useLocalDate();
   const { startRest } = useTimer();
   const [exerciseId, setExerciseId] = useState(exercises[0].id);
   const [session, setSession] = useState<SessionState>({ key: "", data: null, error: "", loginRequired: false });
@@ -225,17 +210,7 @@ export function TrainingPanel() {
   }
 
   return (
-    <section aria-labelledby="training-heading" className="space-y-7">
-      <header className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h1 id="training-heading" className="text-2xl font-semibold">Entrenar</h1>
-          <p className="mt-1 text-sm capitalize text-muted-foreground">{date ? new Date(`${date}T12:00:00`).toLocaleDateString("es-ES", { weekday: "long", day: "numeric", month: "long" }) : "Cargando fecha..."}</p>
-        </div>
-        <button type="button" title="Actualizar series" aria-label="Actualizar series" disabled={locked || loading} onClick={() => setReload((value) => value + 1)} className="flex size-11 shrink-0 items-center justify-center rounded-lg border border-border outline-none hover:bg-card focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-40">
-          <RefreshCw className={`size-4 ${loading ? "animate-spin" : ""}`} />
-        </button>
-      </header>
-
+    <div className="space-y-7">
       <div className="space-y-5">
         <fieldset disabled={locked}>
           <legend className="mb-3 text-sm font-medium">Grupo muscular</legend>
@@ -261,7 +236,12 @@ export function TrainingPanel() {
       <div aria-busy={loading} className="border-t border-border pt-5">
         <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
           <h2 className="flex items-center gap-2 section-heading"><Dumbbell className="size-4 text-primary" />Series de hoy</h2>
-          {data && <p className="text-sm text-muted-foreground">{sets.length} series · {formatWeight(volume)} kg</p>}
+          <div className="flex items-center gap-2">
+            {data && <p className="text-sm text-muted-foreground">{sets.length} series · {formatWeight(volume)} kg</p>}
+            <button type="button" title="Actualizar series" aria-label="Actualizar series" disabled={locked || loading} onClick={() => setReload((value) => value + 1)} className="flex size-11 shrink-0 items-center justify-center rounded-lg border border-border outline-none hover:bg-card focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-40">
+              <RefreshCw className={`size-4 ${loading ? "animate-spin" : ""}`} />
+            </button>
+          </div>
         </div>
         {loading ? <p role="status" className="flex min-h-16 items-center gap-2 text-sm text-muted-foreground"><LoaderCircle className="size-4 animate-spin" />Cargando series...</p> : session.error ? <p role="alert" className="break-words text-sm text-primary">{session.error}</p> : sets.length === 0 ? <p className="py-4 text-sm text-muted-foreground">Sin series registradas.</p> : (
           <table className="w-full table-fixed text-left text-sm">
@@ -329,6 +309,6 @@ export function TrainingPanel() {
           </ul>
         </section>
       )}
-    </section>
+    </div>
   );
 }

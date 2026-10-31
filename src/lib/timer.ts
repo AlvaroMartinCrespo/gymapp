@@ -1,4 +1,6 @@
 export const TIMER_STORAGE_KEY = "gymapp-timer-v1";
+// El cronómetro de cardio es independiente del de fuerza: otra clave para no interferir.
+export const CARDIO_TIMER_STORAGE_KEY = "gymapp-cardio-timer-v1";
 export const MAX_REST_SECONDS = 3600;
 export const MAX_ELAPSED_MS = 99 * 60 * 60 * 1000;
 
@@ -20,6 +22,7 @@ export type TimerAction =
   | { type: "tick" }
   | { type: "configure"; mode: TimerMode; seconds: number }
   | { type: "startRest"; seconds: number; label?: string }
+  | { type: "startStopwatch"; label?: string }
   | { type: "extend"; seconds: number };
 
 export const INITIAL_TIMER: TimerState = {
@@ -31,6 +34,9 @@ export const INITIAL_TIMER: TimerState = {
   startedAt: null,
   label: "Descanso",
 };
+
+// Estado en reposo del cronómetro de cardio: ascendente y sin límite de cuenta atrás.
+export const INITIAL_CARDIO_TIMER: TimerState = { ...INITIAL_TIMER, mode: "stopwatch", label: "Cardio" };
 
 function validSeconds(seconds: number) {
   return Number.isInteger(seconds) && seconds >= 1 && seconds <= MAX_REST_SECONDS;
@@ -91,6 +97,14 @@ export function transitionTimer(state: TimerState, action: TimerAction, now: num
         startedAt: now,
         label: action.label?.trim().slice(0, 100) || "Descanso",
       };
+    case "startStopwatch":
+      return {
+        ...INITIAL_TIMER,
+        mode: "stopwatch",
+        status: "running",
+        startedAt: now,
+        label: action.label?.trim().slice(0, 100) || "Cronómetro",
+      };
     case "extend":
       if (current.mode !== "rest" || !["running", "paused"].includes(current.status) || !validSeconds(action.seconds)) return current;
       return { ...current, durationMs: Math.min(MAX_REST_SECONDS * 1000, current.durationMs + action.seconds * 1000) };
@@ -99,8 +113,8 @@ export function transitionTimer(state: TimerState, action: TimerAction, now: num
   }
 }
 
-export function restoreTimer(serialized: string | null, now: number): TimerState {
-  if (!serialized) return INITIAL_TIMER;
+export function restoreTimer(serialized: string | null, now: number, fallback: TimerState = INITIAL_TIMER): TimerState {
+  if (!serialized) return fallback;
   try {
     const state = JSON.parse(serialized);
     if (
@@ -116,7 +130,7 @@ export function restoreTimer(serialized: string | null, now: number): TimerState
       (state.status === "idle" && state.elapsedMs !== 0) ||
       (state.mode === "rest" && state.elapsedMs > state.durationMs) ||
       (state.status === "finished" && state.elapsedMs !== (state.mode === "rest" ? state.durationMs : MAX_ELAPSED_MS))
-    ) return INITIAL_TIMER;
+    ) return fallback;
     return settleTimer({
       version: 1,
       mode: state.mode,
@@ -127,7 +141,7 @@ export function restoreTimer(serialized: string | null, now: number): TimerState
       label: state.label,
     }, now);
   } catch {
-    return INITIAL_TIMER;
+    return fallback;
   }
 }
 
@@ -159,35 +173,44 @@ type TimerRuntime = {
   schedule: (callback: () => void) => () => void;
 };
 
-const browserRuntime: TimerRuntime = {
-  now: () => Date.now(),
-  read: () => window.localStorage.getItem(TIMER_STORAGE_KEY),
-  write: (value) => window.localStorage.setItem(TIMER_STORAGE_KEY, value),
-  listen: (onStorage, onVisible) => {
-    const storage = (event: StorageEvent) => {
-      if (event.key === TIMER_STORAGE_KEY || event.key === null) onStorage();
-    };
-    const visible = () => {
-      if (document.visibilityState === "visible") onVisible();
-    };
-    window.addEventListener("storage", storage);
-    window.addEventListener("focus", visible);
-    document.addEventListener("visibilitychange", visible);
-    return () => {
-      window.removeEventListener("storage", storage);
-      window.removeEventListener("focus", visible);
-      document.removeEventListener("visibilitychange", visible);
-    };
-  },
-  schedule: (callback) => {
-    const interval = window.setInterval(callback, 250);
-    return () => window.clearInterval(interval);
-  },
+export function createBrowserRuntime(storageKey: string): TimerRuntime {
+  return {
+    now: () => Date.now(),
+    read: () => window.localStorage.getItem(storageKey),
+    write: (value) => window.localStorage.setItem(storageKey, value),
+    listen: (onStorage, onVisible) => {
+      const storage = (event: StorageEvent) => {
+        if (event.key === storageKey || event.key === null) onStorage();
+      };
+      const visible = () => {
+        if (document.visibilityState === "visible") onVisible();
+      };
+      window.addEventListener("storage", storage);
+      window.addEventListener("focus", visible);
+      document.addEventListener("visibilitychange", visible);
+      return () => {
+        window.removeEventListener("storage", storage);
+        window.removeEventListener("focus", visible);
+        document.removeEventListener("visibilitychange", visible);
+      };
+    },
+    schedule: (callback) => {
+      const interval = window.setInterval(callback, 250);
+      return () => window.clearInterval(interval);
+    },
+  };
+}
+
+export type TimerStoreOptions = {
+  /** Estado en reposo y de reserva si lo guardado no vale. */
+  initial?: TimerState;
+  /** Rechaza estados guardados que no encajan con este cronómetro (p. ej. un modo distinto). */
+  accept?: (state: TimerState) => boolean;
 };
 
-export function createTimerStore(runtime: TimerRuntime = browserRuntime) {
+export function createTimerStore(runtime: TimerRuntime = createBrowserRuntime(TIMER_STORAGE_KEY), { initial = INITIAL_TIMER, accept }: TimerStoreOptions = {}) {
   const serverSnapshot: TimerSnapshot = {
-    timer: INITIAL_TIMER,
+    timer: initial,
     now: 0,
     ready: false,
     persistent: true,
@@ -227,7 +250,8 @@ export function createTimerStore(runtime: TimerRuntime = browserRuntime) {
   function restore() {
     const now = runtime.now();
     try {
-      publish(restoreTimer(runtime.read(), now), now, true);
+      const restored = restoreTimer(runtime.read(), now, initial);
+      publish(!accept || accept(restored) ? restored : initial, now, true);
     } catch {
       publish(settleTimer(snapshot.timer, now), now, false);
     }

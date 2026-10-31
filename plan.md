@@ -54,6 +54,8 @@ workout_logs:
 id, user_id, date (YYYY-MM-DD).
 workout_sets:
 id, workout_log_id, exercise_id (clave foránea obligatoria al catálogo), set_number, weight (kg), reps, is_pr (booleano).
+cardio_sessions (Cardio, fuera del volumen y del mapa muscular):
+id, workout_log_id (cuelga del log del día; la fecha vive en workout_logs), activity_type (catálogo cerrado), duration_seconds, distance_km, avg_hr, max_hr, calories, data_source ('manual' | 'estimated' | 'sensor'; sensor reservado al servidor), rpe (1-10), client_request_id, created_at. Detalle en docs/cardio-fase-0-1.md y docs/cardio-fase-2.md.
 ai_alerts (Detector Automático de Descarga/Fatiga):
 id, user_id, exercise_id, alert_type ('STAGNATION' | 'FATIGUE'), message, is_read, created_at.
 social_feed (Opcional):

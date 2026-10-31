@@ -132,9 +132,9 @@ declare
   empty_day jsonb := public.get_workout_history(current_date - 2);
   first_of_month boolean := extract(day from current_date) = 1;
 begin
-  if (history -> 'summary' ->> 'sets')::integer <> case when first_of_month then 2 else 4 end
-    or (history -> 'summary' ->> 'days')::integer <> case when first_of_month then 1 else 2 end
-    or (history -> 'summary' ->> 'volume')::numeric <> case when first_of_month then 1200 else 2600 end
+  if (history -> 'summary' ->> 'sets')::integer <> (case when first_of_month then 2 else 4 end)
+    or (history -> 'summary' ->> 'days')::integer <> (case when first_of_month then 1 else 2 end)
+    or (history -> 'summary' ->> 'volume')::numeric <> (case when first_of_month then 1200 else 2600 end)
     or jsonb_array_length(history -> 'sets') <> 2
     or (history ->> 'month')::date <> date_trunc('month', current_date)::date then
     raise exception 'El historial no separa el mes y las series del dia seleccionado';
@@ -161,7 +161,7 @@ begin
   if (context -> 'summary' ->> 'sets')::integer <> 4
     or (context -> 'summary' ->> 'days')::integer <> 2
     or (context -> 'summary' ->> 'volume')::numeric <> 2600
-    or jsonb_array_length(context -> 'catalog') <> 45 then
+    or jsonb_array_length(context -> 'catalog') <> 48 then
     raise exception 'El contexto IA no corresponde a las series reales';
   end if;
   if (context -> 'weekly' -> 0 ->> 'weight')::numeric <> 60
@@ -233,8 +233,8 @@ $$;
 set local role anon;
 do $$
 begin
-  if (select count(*) from public.exercises_catalog) <> 45 then
-    raise exception 'El catalogo no contiene los 45 ejercicios';
+  if (select count(*) from public.exercises_catalog) <> 48 then
+    raise exception 'El catalogo no contiene los 48 ejercicios';
   end if;
   begin
     perform public.get_profile_overview(current_date);
@@ -549,6 +549,309 @@ begin
   begin
     perform public.get_rankings('bench_press', 'weight');
     raise exception 'Rankings permite consultar sin autenticar';
+  exception when insufficient_privilege then null;
+  end;
+end;
+$$;
+reset role;
+-- ---------------------------------------------------------------------------
+-- Cardio (fase 1): aislamiento, permisos de columna, restricciones y convivencia
+-- con las funciones de fuerza. Usa fechas de 2003 para no mezclarse con los datos anteriores.
+-- ---------------------------------------------------------------------------
+insert into public.workout_logs (id, user_id, date) values
+  ('10000000-0000-4000-8000-0000000000c1', '00000000-0000-4000-8000-000000000001', '2003-03-03'),
+  ('10000000-0000-4000-8000-0000000000c2', '00000000-0000-4000-8000-000000000001', '2003-03-04');
+insert into public.workout_sets (workout_log_id, exercise_id, set_number, weight, reps)
+values ('10000000-0000-4000-8000-0000000000c2', 'bench_press', 1, 50, 5);
+
+set local role authenticated;
+select set_config('request.jwt.claims', '{"sub":"00000000-0000-4000-8000-000000000001","role":"authenticated"}', true);
+
+-- Las funciones de fuerza devuelven exactamente lo mismo antes y después de añadir cardio.
+do $$
+declare
+  history_before jsonb := public.get_workout_history(current_date);
+  recap_before jsonb := public.get_workout_recap(current_date, 'month');
+  profile_before jsonb := public.get_profile_overview(current_date);
+  coach_before jsonb := public.get_coach_context(current_date);
+  session_before jsonb := public.get_workout_session(current_date, 'bench_press');
+begin
+  insert into public.cardio_sessions (workout_log_id, activity_type, duration_seconds, distance_km, avg_hr, max_hr, calories, rpe, client_request_id)
+  values ('10000000-0000-4000-8000-000000000001', 'running', 1800, 5.2, 150, 172, 420, 7, '20000000-0000-4000-8000-000000000001');
+  insert into public.cardio_sessions (workout_log_id, activity_type, duration_seconds)
+  values ('10000000-0000-4000-8000-0000000000c1', 'swimming', 2400);
+  insert into public.cardio_sessions (workout_log_id, activity_type, duration_seconds, data_source)
+  values ('10000000-0000-4000-8000-0000000000c2', 'rowing', 900, 'estimated');
+
+  if public.get_workout_history(current_date) is distinct from history_before then
+    raise exception 'El historial cambia al añadir cardio';
+  end if;
+  if public.get_workout_recap(current_date, 'month') is distinct from recap_before then
+    raise exception 'El recap cambia al añadir cardio';
+  end if;
+  if public.get_profile_overview(current_date) is distinct from profile_before then
+    raise exception 'El perfil cambia al añadir cardio';
+  end if;
+  if public.get_coach_context(current_date) is distinct from coach_before then
+    raise exception 'El contexto IA cambia al añadir cardio';
+  end if;
+  if public.get_workout_session(current_date, 'bench_press') is distinct from session_before then
+    raise exception 'La sesión de fuerza cambia al añadir cardio';
+  end if;
+end;
+$$;
+
+-- Un día solo de cardio (log sin series) no cuenta como día entrenado ni se puede finalizar.
+do $$
+declare
+  march jsonb := public.get_workout_history('2003-03-03');
+begin
+  if jsonb_array_length(march -> 'sets') <> 0 or exists (
+    select 1 from jsonb_array_elements(march -> 'days') as day where (day ->> 'date')::date = '2003-03-03'
+  ) then
+    raise exception 'Un día solo de cardio aparece como día de fuerza en el historial';
+  end if;
+  if (public.get_workout_recap('2003-03-03', 'week') -> 'current' ->> 'sets')::integer <> 0 then
+    raise exception 'El recap cuenta series en un día solo de cardio';
+  end if;
+  begin
+    perform public.finish_workout('2003-03-03');
+    raise exception 'Se puede finalizar un día solo de cardio';
+  exception when invalid_parameter_value then null;
+  end;
+end;
+$$;
+
+-- Restricciones de datos y permisos de columna.
+do $$
+begin
+  if (select count(*) from public.cardio_sessions) <> 3 then
+    raise exception 'El propietario no ve sus tres sesiones de cardio';
+  end if;
+  begin
+    insert into public.cardio_sessions (workout_log_id, activity_type, duration_seconds)
+    values ('10000000-0000-4000-8000-000000000001', 'parkour', 600);
+    raise exception 'Se permite una actividad fuera del catálogo';
+  exception when check_violation then null;
+  end;
+  begin
+    insert into public.cardio_sessions (workout_log_id, activity_type, duration_seconds)
+    values ('10000000-0000-4000-8000-000000000001', 'running', 0);
+    raise exception 'Se permite una duración nula';
+  exception when check_violation then null;
+  end;
+  begin
+    insert into public.cardio_sessions (workout_log_id, activity_type, duration_seconds, avg_hr, max_hr)
+    values ('10000000-0000-4000-8000-000000000001', 'running', 600, 170, 150);
+    raise exception 'Se permite una FC máxima inferior a la media';
+  exception when check_violation then null;
+  end;
+  begin
+    insert into public.cardio_sessions (workout_log_id, activity_type, duration_seconds, rpe)
+    values ('10000000-0000-4000-8000-000000000001', 'running', 600, 11);
+    raise exception 'Se permite un RPE fuera de 1 a 10';
+  exception when check_violation then null;
+  end;
+  begin
+    insert into public.cardio_sessions (workout_log_id, activity_type, duration_seconds, data_source)
+    values ('10000000-0000-4000-8000-000000000001', 'running', 600, 'sensor');
+    raise exception 'Un cliente puede falsificar el origen sensor';
+  exception when insufficient_privilege then null;
+  end;
+  begin
+    update public.cardio_sessions set data_source = 'sensor';
+    raise exception 'Un cliente puede cambiar una sesión a origen sensor';
+  exception when insufficient_privilege then null;
+  end;
+  begin
+    insert into public.cardio_sessions (workout_log_id, activity_type, duration_seconds, client_request_id)
+    values ('10000000-0000-4000-8000-000000000001', 'running', 1800, '20000000-0000-4000-8000-000000000001');
+    raise exception 'Se duplica una petición con el mismo identificador';
+  exception when unique_violation then null;
+  end;
+  begin
+    insert into public.cardio_sessions (workout_log_id, activity_type, duration_seconds)
+    values ('10000000-0000-4000-8000-000000000002', 'running', 600);
+    raise exception 'Se permite escribir cardio en el entrenamiento de otro usuario';
+  exception when insufficient_privilege then null;
+  end;
+  begin
+    update public.cardio_sessions set workout_log_id = '10000000-0000-4000-8000-000000000002';
+    raise exception 'Se permite mover una sesión a otro entrenamiento';
+  exception when insufficient_privilege then null;
+  end;
+  update public.cardio_sessions set duration_seconds = 1900, rpe = 8
+  where workout_log_id = '10000000-0000-4000-8000-000000000001';
+  if (select duration_seconds from public.cardio_sessions where workout_log_id = '10000000-0000-4000-8000-000000000001') <> 1900 then
+    raise exception 'El propietario no puede editar su sesión';
+  end if;
+end;
+$$;
+
+-- Otro usuario no ve ni borra nada ajeno.
+select set_config('request.jwt.claims', '{"sub":"00000000-0000-4000-8000-000000000002","role":"authenticated"}', true);
+do $$
+declare
+  removed integer;
+begin
+  if (select count(*) from public.cardio_sessions) <> 0 then
+    raise exception 'Se filtran sesiones de cardio ajenas';
+  end if;
+  delete from public.cardio_sessions;
+  get diagnostics removed = row_count;
+  if removed <> 0 then
+    raise exception 'Se pueden borrar sesiones de cardio ajenas';
+  end if;
+end;
+$$;
+
+-- Sin sesión no hay acceso.
+set local role anon;
+do $$
+begin
+  begin
+    perform count(*) from public.cardio_sessions;
+    raise exception 'anon puede leer el cardio';
+  exception when insufficient_privilege then null;
+  end;
+end;
+$$;
+reset role;
+
+-- La finalización automática finaliza el día con series (aunque tenga cardio) y deja intacto el solo-cardio.
+do $$
+begin
+  perform public.auto_finish_past_workouts();
+  if (select completed_at from public.workout_logs where id = '10000000-0000-4000-8000-0000000000c2') is null then
+    raise exception 'La finalización automática no cierra un día con series y cardio';
+  end if;
+  if (select completed_at from public.workout_logs where id = '10000000-0000-4000-8000-0000000000c1') is not null then
+    raise exception 'La finalización automática cierra un día solo de cardio';
+  end if;
+end;
+$$;
+
+-- Añadir cardio a un día ya finalizado no lo reabre; borrar el entrenamiento borra su cardio.
+set local role authenticated;
+select set_config('request.jwt.claims', '{"sub":"00000000-0000-4000-8000-000000000001","role":"authenticated"}', true);
+do $$
+begin
+  insert into public.cardio_sessions (workout_log_id, activity_type, duration_seconds)
+  values ('10000000-0000-4000-8000-0000000000c2', 'walking', 600);
+  if (select completed_at from public.workout_logs where id = '10000000-0000-4000-8000-0000000000c2') is null then
+    raise exception 'Añadir cardio reabre un entrenamiento finalizado';
+  end if;
+  delete from public.workout_logs where id = '10000000-0000-4000-8000-0000000000c1';
+  if exists (select 1 from public.cardio_sessions where workout_log_id = '10000000-0000-4000-8000-0000000000c1') then
+    raise exception 'Borrar el entrenamiento no borra su cardio';
+  end if;
+end;
+$$;
+reset role;
+
+-- Fase 2: save_cardio_session y get_recent_cardio.
+set local role authenticated;
+select set_config('request.jwt.claims', '{"sub":"00000000-0000-4000-8000-000000000001","role":"authenticated"}', true);
+do $$
+declare
+  log_day constant date := '2004-04-04';
+  request_id constant uuid := '30000000-0000-4000-8000-000000000001';
+  first_save public.cardio_sessions;
+  second_save public.cardio_sessions;
+  recent jsonb;
+begin
+  first_save := public.save_cardio_session(log_day, 'running', 1800, 5, 150, 175, 400, 'manual', 7, request_id);
+  second_save := public.save_cardio_session(log_day, 'running', 1800, 5, 150, 175, 400, 'manual', 7, request_id);
+  if first_save.id <> second_save.id
+    or (select count(*) from public.cardio_sessions where client_request_id = request_id) <> 1 then
+    raise exception 'Reintentar un guardado de cardio lo duplica';
+  end if;
+  if (select count(*) from public.workout_logs where user_id = '00000000-0000-4000-8000-000000000001' and date = log_day) <> 1 then
+    raise exception 'Guardar cardio no crea (o duplica) el log del día';
+  end if;
+
+  -- Reutilizar el mismo requestId con otros datos se rechaza.
+  begin
+    perform public.save_cardio_session(log_day, 'running', 1801, 5, 150, 175, 400, 'manual', 7, request_id);
+    raise exception 'Se acepta un requestId reutilizado con otros datos';
+  exception when sqlstate '22023' then null;
+  end;
+
+  -- Datos inválidos: actividad fuera del catálogo, sensor, estimación sin calorías, FC incoherente, duración 0.
+  begin
+    perform public.save_cardio_session(log_day, 'skiing', 600, null, null, null, null, 'manual', null, gen_random_uuid());
+    raise exception 'Se acepta una actividad fuera del catálogo';
+  exception when sqlstate '22023' then null;
+  end;
+  begin
+    perform public.save_cardio_session(log_day, 'running', 600, null, null, null, 100, 'sensor', null, gen_random_uuid());
+    raise exception 'Un cliente puede guardar data_source = sensor';
+  exception when sqlstate '22023' then null;
+  end;
+  begin
+    perform public.save_cardio_session(log_day, 'running', 600, null, null, null, null, 'estimated', null, gen_random_uuid());
+    raise exception 'Se acepta una estimación sin calorías';
+  exception when sqlstate '22023' then null;
+  end;
+  begin
+    perform public.save_cardio_session(log_day, 'running', 600, null, 160, 150, null, 'manual', null, gen_random_uuid());
+    raise exception 'Se acepta una FC máxima menor que la media';
+  exception when sqlstate '22023' then null;
+  end;
+  begin
+    perform public.save_cardio_session(log_day, 'running', 0, null, null, null, null, 'manual', null, gen_random_uuid());
+    raise exception 'Se acepta una duración de 0 segundos';
+  exception when sqlstate '22023' then null;
+  end;
+
+  -- El listado incluye la sesión con la fecha del log y respeta el límite.
+  recent := public.get_recent_cardio(100);
+  if not exists (
+    select 1 from jsonb_array_elements(recent) as item
+    where item ->> 'id' = first_save.id::text and item ->> 'date' = log_day::text and item ->> 'activity_type' = 'running'
+  ) then
+    raise exception 'get_recent_cardio no devuelve la sesión con su fecha';
+  end if;
+  if jsonb_array_length(public.get_recent_cardio(1)) <> 1 or jsonb_array_length(public.get_recent_cardio(0)) <> 1 then
+    raise exception 'get_recent_cardio no respeta el límite';
+  end if;
+
+  -- Un día solo de cardio no cambia el historial de fuerza (el calendario se amplía en la Fase 4).
+  if jsonb_array_length(public.get_workout_history(log_day) -> 'days') <> 0
+    or jsonb_array_length(public.get_workout_history(log_day) -> 'sets') <> 0 then
+    raise exception 'Un día solo de cardio altera el historial de fuerza';
+  end if;
+end;
+$$;
+
+-- Otro usuario no ve esa sesión y puede reutilizar el mismo requestId en su propio log.
+select set_config('request.jwt.claims', '{"sub":"00000000-0000-4000-8000-000000000002","role":"authenticated"}', true);
+do $$
+declare
+  other public.cardio_sessions;
+begin
+  if exists (select 1 from jsonb_array_elements(public.get_recent_cardio(100)) as item where item ->> 'date' = '2004-04-04') then
+    raise exception 'get_recent_cardio filtra cardio de otro usuario';
+  end if;
+  other := public.save_cardio_session('2004-04-04', 'walking', 900, null, null, null, null, 'manual', null, '30000000-0000-4000-8000-000000000001');
+  if not exists (select 1 from public.workout_logs where id = other.workout_log_id and user_id = '00000000-0000-4000-8000-000000000002') then
+    raise exception 'Un usuario cuelga cardio del log de otro';
+  end if;
+end;
+$$;
+
+-- Sin sesión no se ejecutan.
+set local role anon;
+do $$
+begin
+  begin
+    perform public.get_recent_cardio(10);
+    raise exception 'anon puede leer el cardio con get_recent_cardio';
+  exception when insufficient_privilege then null;
+  end;
+  begin
+    perform public.save_cardio_session('2004-04-04', 'running', 600, null, null, null, null, 'manual', null, gen_random_uuid());
+    raise exception 'anon puede guardar cardio';
   exception when insufficient_privilege then null;
   end;
 end;
