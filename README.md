@@ -14,7 +14,7 @@ PWA minimalista de gimnasio (dark mode, Shadcn/Xiaomi) con visor 3D de músculos
 
 - PostgreSQL en Supabase y despliegue Next.js en Vercel.
 - Migración con perfiles, catálogo, entrenamientos, series, alertas y feed; políticas RLS y permisos mínimos.
-- Catálogo cerrado de 45 ejercicios en las siete categorías, con músculos primarios, secundarios y cámara inicial.
+- Catálogo cerrado de 48 ejercicios en las siete categorías, con músculos primarios, secundarios y cámara inicial.
 - Registro con solo correo y contraseña, inicio y cierre de sesión en `/acceso` mediante Supabase Auth. El alias se genera automáticamente. Las contraseñas y sesiones no se guardan en tablas propias.
 - Cookies HttpOnly, SameSite=Lax y Secure en HTTPS; renovación de tokens. «Mantener sesión» fija un máximo de 90 días sin extenderlo en cada renovación. Sin esa opción, las cookies son de sesión.
 - Pendientes: configurar Supabase y Vercel, aplicar el SQL, comprobar RLS en PostgreSQL y probar el acceso completo.

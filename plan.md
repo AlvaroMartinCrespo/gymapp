@@ -104,7 +104,7 @@ Solo permite publicar tarjetas generadas por el sistema al terminar el día (Res
 
 Estado comprobado (2026-10-29):
 - Fase 1: estructura, navegación y configuración PWA presentes; despliegue no verificado.
-- Fase 2: modelo PostgreSQL y migración Supabase con RLS preparados. Catálogo de 45 ejercicios y seed idempotente implementados. Aplicación del SQL en Supabase pendiente.
+- Fase 2: modelo PostgreSQL y migración Supabase con RLS preparados. Catálogo de 48 ejercicios y seed idempotente implementados. Aplicación del SQL en Supabase pendiente.
 - Paso 2.4: registro, inicio/cierre de sesión, renovación y cookies HttpOnly implementados con Supabase Auth. Pruebas con proveedor simulado superadas; faltan configuración y prueba real de correo y acceso. La fase 2 todavía no se considera cerrada.
 - Fase 3: cronómetro, cuenta atrás, píldora global, registro de series y visor anatómico real implementados. El GLB aportado tiene 634 mallas, compresión Meshopt y atribución CC BY-SA 4.0. Los 22 identificadores musculares reales del catálogo se conservan y se corresponden con mallas del modelo; el grupo auxiliar de antebrazos también es identificable. Giro táctil/ratón/teclado, enfoque suave, principales/secundarios y errores WebGL preparados. Three.js y Meshopt se sirven como archivos estáticos locales con versiones fijadas, sin instalación ni Fiber/Drei. Carga, colores y tamaño móvil comprobados en navegador sobre el visor estático. Pendientes: aplicar/comprobar SQL y verificar el flujo React completo en Next.js/Supabase y en dispositivos físicos.
 - Fase 4: perfil, historial mensual, recap estadístico con mapa muscular 3D, finalización explícita, avisos conservadores y rankings voluntarios implementados. Migraciones preparadas hasta la novena. La novena añade series principales/secundarias reales por músculo con RLS, sin estimaciones por categoría ni dobles conteos. Sin aplicarla, el recap anterior funciona y muestra el aviso de detalle no disponible. Pendientes: integración real, concurrencia, revisión visual de la app completa y rendimiento. La automatización de `is_pr` sigue pendiente. No se infiere fatiga fisiológica ni se prescribe descarga.
@@ -120,7 +120,7 @@ Paso 1.5: Conectar GitHub con Vercel, configurar las variables de entorno y desp
 Fase 2: Base de Datos (Supabase PostgreSQL), Catálogo Cerrado y Auth
 Paso 2.1: Crear el proyecto Supabase y configurar SUPABASE_URL y SUPABASE_PUBLISHABLE_KEY en local y Vercel. No usar claves administrativas para autenticar usuarios.
 Paso 2.2: Aplicar las migraciones Supabase con profiles, exercises_catalog, workout_logs, workout_sets, ai_alerts y social_feed, sus restricciones y políticas RLS. Identidad y sesiones delegadas a Supabase Auth.
-Paso 2.3: Crear y ejecutar el script Seed que rellena la tabla exercises_catalog con los ~45 ejercicios principales divididos por categoría y asociados a sus mallas 3D (primary_meshes y secondary_meshes).
+Paso 2.3: Crear y ejecutar el script Seed que rellena la tabla exercises_catalog con los ~48 ejercicios principales divididos por categoría y asociados a sus mallas 3D (primary_meshes y secondary_meshes).
 Paso 2.4: Registro e Inicio de Sesión con Supabase Auth, confirmación de correo, renovación de tokens, cierre de sesión y checkbox de "Mantener sesión iniciada" mediante cookies HttpOnly de hasta 90 días.
 Fase 3: Visor 3D Giratorio, Apuntar Ejercicios y Píldora de Cronómetro
 Paso 3.1: Guardar el modelo 3D anatómico comprimido (human_muscles.glb) en /public/models/ dentro del repositorio de GitHub.
