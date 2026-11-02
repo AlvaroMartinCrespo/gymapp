@@ -2,7 +2,7 @@
 export const muscleGroups = {
   pectoralis_major: "Pecho", latissimus_dorsi: "Dorsales", trapezius: "Trapecios",
   rhomboids: "Romboides", erector_spinae: "Erectores espinales", quadriceps: "Cuádriceps",
-  hamstrings: "Isquiotibiales", gluteus_maximus: "Glúteo mayor", gastrocnemius: "Gemelos", soleus: "Sóleo",
+  hamstrings: "Isquiotibiales", gluteus_maximus: "Glúteo mayor", gluteus_medius: "Glúteo medio", gastrocnemius: "Gemelos", soleus: "Sóleo",
   adductors: "Aductores", anterior_deltoid: "Deltoides anterior",
   lateral_deltoid: "Deltoides lateral", posterior_deltoid: "Deltoides posterior",
   biceps: "Bíceps", triceps: "Tríceps", forearms: "Antebrazos",
@@ -20,6 +20,7 @@ const rules = [
   [/rectus femoris|vastus (lateralis|medialis|intermedius)/, "quadriceps"],
   [/biceps femoris|semimembranosus|semitendinosus/, "hamstrings"],
   [/gluteus maximus/, "gluteus_maximus"],
+  [/gluteus (medius|minimus)/, "gluteus_medius"],
   [/gastrocnemius/, "gastrocnemius"],
   [/\bsoleus\b/, "soleus"],
   [/adductor (longus|brevis|magnus)|gracilis|pectineus/, "adductors"],

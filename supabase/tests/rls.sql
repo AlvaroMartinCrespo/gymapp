@@ -161,7 +161,7 @@ begin
   if (context -> 'summary' ->> 'sets')::integer <> 4
     or (context -> 'summary' ->> 'days')::integer <> 2
     or (context -> 'summary' ->> 'volume')::numeric <> 2600
-    or jsonb_array_length(context -> 'catalog') <> 48 then
+    or jsonb_array_length(context -> 'catalog') <> 51 then
     raise exception 'El contexto IA no corresponde a las series reales';
   end if;
   if (context -> 'weekly' -> 0 ->> 'weight')::numeric <> 60
@@ -233,8 +233,8 @@ $$;
 set local role anon;
 do $$
 begin
-  if (select count(*) from public.exercises_catalog) <> 48 then
-    raise exception 'El catalogo no contiene los 48 ejercicios';
+  if (select count(*) from public.exercises_catalog) <> 51 then
+    raise exception 'El catalogo no contiene los 51 ejercicios';
   end if;
   begin
     perform public.get_profile_overview(current_date);

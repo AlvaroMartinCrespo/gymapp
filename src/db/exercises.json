@@ -46,5 +46,8 @@
   { "id": "ab_wheel", "name": "Rueda abdominal", "category": "Core", "primaryMeshes": ["rectus_abdominis"], "secondaryMeshes": ["obliques", "latissimus_dorsi"], "defaultCamera": "front" },
   { "id": "machine_crunch", "name": "Crunch en máquina", "category": "Core", "primaryMeshes": ["rectus_abdominis"], "secondaryMeshes": ["obliques"], "defaultCamera": "front" },
   { "id": "cable_woodchop", "name": "Rotación de tronco en polea", "category": "Core", "primaryMeshes": ["obliques"], "secondaryMeshes": ["rectus_abdominis"], "defaultCamera": "front" },
-  { "id": "reverse_crunch", "name": "Crunch inverso", "category": "Core", "primaryMeshes": ["rectus_abdominis"], "secondaryMeshes": ["obliques", "iliopsoas"], "defaultCamera": "front" }
+  { "id": "reverse_crunch", "name": "Crunch inverso", "category": "Core", "primaryMeshes": ["rectus_abdominis"], "secondaryMeshes": ["obliques", "iliopsoas"], "defaultCamera": "front" },
+  { "id": "t_bar_row", "name": "Remo T-bar", "category": "Espalda", "primaryMeshes": ["latissimus_dorsi", "rhomboids", "trapezius"], "secondaryMeshes": ["biceps", "posterior_deltoid", "erector_spinae", "brachialis"], "defaultCamera": "back" },
+  { "id": "hip_abduction_machine", "name": "Apertura de abductores en máquina", "category": "Piernas", "primaryMeshes": ["gluteus_medius"], "secondaryMeshes": ["gluteus_maximus"], "defaultCamera": "back" },
+  { "id": "pendulum_squat", "name": "Péndulo en máquina", "category": "Piernas", "primaryMeshes": ["quadriceps", "gluteus_maximus"], "secondaryMeshes": ["hamstrings", "adductors", "gastrocnemius"], "defaultCamera": "front" }
 ]

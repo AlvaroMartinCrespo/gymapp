@@ -46,7 +46,10 @@ VALUES ('bench_press', 'Press de banca', 'Pecho', '["pectoralis_major"]', '["tri
 ('ab_wheel', 'Rueda abdominal', 'Core', '["rectus_abdominis"]', '["obliques","latissimus_dorsi"]', 'front'),
 ('machine_crunch', 'Crunch en máquina', 'Core', '["rectus_abdominis"]', '["obliques"]', 'front'),
 ('cable_woodchop', 'Rotación de tronco en polea', 'Core', '["obliques"]', '["rectus_abdominis"]', 'front'),
-('reverse_crunch', 'Crunch inverso', 'Core', '["rectus_abdominis"]', '["obliques","iliopsoas"]', 'front')
+('reverse_crunch', 'Crunch inverso', 'Core', '["rectus_abdominis"]', '["obliques","iliopsoas"]', 'front'),
+('t_bar_row', 'Remo T-bar', 'Espalda', '["latissimus_dorsi","rhomboids","trapezius"]', '["biceps","posterior_deltoid","erector_spinae","brachialis"]', 'back'),
+('hip_abduction_machine', 'Apertura de abductores en máquina', 'Piernas', '["gluteus_medius"]', '["gluteus_maximus"]', 'back'),
+('pendulum_squat', 'Péndulo en máquina', 'Piernas', '["quadriceps","gluteus_maximus"]', '["hamstrings","adductors","gastrocnemius"]', 'front')
 ON CONFLICT(id) DO UPDATE SET
   name = excluded.name,
   category = excluded.category,

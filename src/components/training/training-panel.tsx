@@ -52,7 +52,7 @@ export function TrainingPanel() {
   const [weight, setWeight] = useState("");
   const [reps, setReps] = useState("");
   const [restEnabled, setRestEnabled] = useState(true);
-  const [restSeconds, setRestSeconds] = useState(90);
+  const [restSeconds, setRestSeconds] = useState(120);
   const [busy, setBusy] = useState<string | null>(null);
   const [uncertain, setUncertain] = useState(false);
   const [error, setError] = useState("");
