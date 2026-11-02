@@ -7,6 +7,7 @@ import { Bot, CalendarDays, Check, Dumbbell, LoaderCircle, LogIn, RefreshCw, Sav
 
 import quotes from "@/data/athlete-quotes.json";
 import { Button } from "@/components/ui/button";
+import { AvatarLightbox } from "@/components/ui/avatar-lightbox";
 
 type Profile = { id: string; username: string; avatar_url: string | null; created_at: string };
 type Overview = {
@@ -125,11 +126,15 @@ export function ProfilePanel() {
 
       {data && (
         <div className="flex items-center gap-4">
-          <div className="flex size-24 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-border bg-card">
-            {data.profile.avatar_url && failedAvatar !== data.profile.avatar_url ? (
+          {data.profile.avatar_url && failedAvatar !== data.profile.avatar_url ? (
+            <AvatarLightbox url={data.profile.avatar_url} name={data.profile.username} className="flex size-24 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-border bg-card">
               <Image src={data.profile.avatar_url} width={96} height={96} alt={`Foto de ${data.profile.username}`} unoptimized referrerPolicy="no-referrer" onError={() => setFailedAvatar(data.profile.avatar_url)} className="size-24 object-cover" />
-            ) : <UserRound className="size-10 text-primary" aria-hidden="true" />}
-          </div>
+            </AvatarLightbox>
+          ) : (
+            <div className="flex size-24 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-border bg-card">
+              <UserRound className="size-10 text-primary" aria-hidden="true" />
+            </div>
+          )}
           <div className="min-w-0">
             {data.email && <p className="break-all text-sm text-muted-foreground">{data.email}</p>}
           </div>

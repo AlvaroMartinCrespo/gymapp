@@ -6,6 +6,7 @@ import Image from "next/image";
 import { ArrowLeft, ArrowRight, LoaderCircle, RefreshCw, Trophy, UserRound } from "lucide-react";
 import exercises from "@/db/exercises.json";
 import { Button } from "@/components/ui/button";
+import { AvatarLightbox } from "@/components/ui/avatar-lightbox";
 
 type Entry = { username: string; avatar_url: string | null; weight: number; reps: number; position: number; is_me: boolean };
 type Rankings = { enabled: boolean; total: number; entries: Entry[]; personal: { weight: number; reps: number; position: number | null } | null };
@@ -15,13 +16,15 @@ const format = new Intl.NumberFormat("es-ES", { maximumFractionDigits: 2 });
 
 function Avatar({ url, name }: { url: string | null; name: string }) {
   const [failed, setFailed] = useState(false);
-  return (
-    <span className="flex size-10 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-border bg-card">
-      {url && !failed ? (
+  const box = "flex size-10 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-border bg-card";
+  if (url && !failed) {
+    return (
+      <AvatarLightbox url={url} name={name} className={box}>
         <Image src={url} width={40} height={40} alt={`Foto de ${name}`} unoptimized loading="lazy" referrerPolicy="no-referrer" onError={() => setFailed(true)} className="size-10 object-cover" />
-      ) : <UserRound className="size-5 text-muted-foreground" aria-hidden="true" />}
-    </span>
-  );
+      </AvatarLightbox>
+    );
+  }
+  return <span className={box}><UserRound className="size-5 text-muted-foreground" aria-hidden="true" /></span>;
 }
 
 export function RankingsPanel() {
