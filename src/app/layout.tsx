@@ -3,6 +3,7 @@ import { GeistSans } from "geist/font/sans";
 import { GeistMono } from "geist/font/mono";
 
 import { AppShell } from "@/components/layout/app-shell";
+import { ServiceWorkerRegister } from "@/components/layout/service-worker-register";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -40,6 +41,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       className={`${GeistSans.variable} ${GeistMono.variable} dark min-h-dvh antialiased`}
     >
       <body className="min-h-dvh">
+        <ServiceWorkerRegister />
         <AppShell>{children}</AppShell>
       </body>
     </html>

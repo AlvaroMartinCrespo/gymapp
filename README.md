@@ -31,6 +31,57 @@ Se guarda en `localStorage` al cambiar de estado, no en cada tick. El tiempo se 
 
 `TimerProvider` expone `useTimer().startRest(segundos, nombreDelEjercicio)`. El formulario de `/entrenar` lo invoca únicamente después de recibir la confirmación del guardado en Supabase; un envío fallido no reinicia el descanso.
 
+## Notificaciones del cronómetro
+
+Cuando termina un descanso llega una notificación al móvil (pantalla de bloqueo y centro de notificaciones), aunque la app esté cerrada o el teléfono bloqueado. El navegador no puede despertar a la app por sí solo, así que el aviso lo envía el servidor a la hora exacta:
+
+1. Al iniciar, reanudar o ampliar un descanso, la app llama a `POST /api/push/schedule` con la suscripción del dispositivo y los segundos restantes. El servidor pide a QStash (Upstash) que llame a `/api/push/deliver` pasado ese tiempo, sin reintentos.
+2. Al pausar, reiniciar o reconfigurar, la app llama a `POST /api/push/cancel` con el `messageId` guardado. Si amplía (+30 s) o reanuda, cancela y reagenda.
+3. A la hora de fin, QStash llama a `/api/push/deliver`. La ruta verifica la firma (`Upstash-Signature`) y envía el push cifrado con VAPID (TTL de 60 s: un aviso de descanso que llega tarde no sirve).
+4. El service worker (`public/sw.js`) muestra siempre la notificación; al tocarla se abre `/cronometro`.
+
+El cronómetro manda: `syncTimerPush` es idempotente, se llama tras cada acción del usuario y al volver a primer plano, y solo programa avisos para descansos en marcha. El cronómetro ascendente no agenda nada. Si el permiso está denegado o no hay soporte, al terminar con la app visible funciona el respaldo local (vibración y notificación local); con el push activo no se duplica.
+
+**Sin base de datos.** El cronómetro no exige sesión y su estado es local, así que la suscripción push no se guarda en Supabase: viaja dentro del mensaje de QStash cada vez que se programa un descanso. No hay tablas, RLS ni `service_role` nuevos. No se han instalado paquetes: el cifrado, la firma VAPID, la verificación de QStash y el cliente REST usan `node:crypto` y `fetch`.
+
+### Requisitos
+
+- **iPhone/iPad:** iOS o iPadOS **16.4 o superior** y la app instalada con *Compartir → Añadir a pantalla de inicio*. El permiso se pide tocando «Activar avisos» dentro de la app instalada; desde Safari no está disponible.
+- **Android:** Chrome. **Escritorio:** Chrome, Edge o Firefox.
+- La app en **HTTPS** con un dominio estable (Vercel lo da). Las push no funcionan en `http://`, salvo `localhost`.
+- Cuenta de Upstash con QStash activado (plan gratuito suficiente; revisa las cuotas al configurarlo).
+
+### Variables de entorno
+
+Definidas en [.env.example](.env.example). Genera el par de claves VAPID con `node scripts/generate-vapid.mjs` (no escribe ningún archivo: copia los valores a `.env.local` y a Vercel).
+
+| Variable | Dónde se usa | Notas |
+|---|---|---|
+| `NEXT_PUBLIC_VAPID_PUBLIC_KEY` | Cliente y servidor | Clave pública; puede ser pública |
+| `VAPID_PRIVATE_KEY` | Solo servidor | **Secreta** |
+| `VAPID_SUBJECT` | Solo servidor | `mailto:tu@correo.com` o una URL https |
+| `QSTASH_TOKEN` | Solo servidor | **Secreta** |
+| `QSTASH_URL` | Solo servidor | Opcional. Solo si tu cuenta no está en la región por defecto (EE. UU.), p. ej. `https://qstash-eu-central-1.upstash.io` |
+| `QSTASH_CURRENT_SIGNING_KEY` | Solo servidor | Verifica que las llamadas vienen de QStash |
+| `QSTASH_NEXT_SIGNING_KEY` | Solo servidor | Rotación de claves de firma |
+| `APP_URL` | Solo servidor | URL pública de producción a la que QStash llamará, https y sin barra final |
+
+### Seguridad
+
+`schedule` y `cancel` son públicas porque no hay login. Se limita el abuso con: mismo origen y JSON, cuerpo de tamaño máximo, `seconds` entero entre 1 y 3600 (el mismo límite del cronómetro), `endpoint` solo `https` y de una lista permitida (Apple, Google, Mozilla y Windows), identificador de mensaje con formato estricto, título y URL fijados por el servidor, `label` limpiado y recortado a 100 caracteres, y errores genéricos que no filtran claves ni tokens. `deliver` responde 401 sin una firma de QStash válida. Si se detectara abuso, la salida es exigir sesión de Supabase o añadir un límite por IP.
+
+### Limitaciones
+
+- **No es exacto al segundo.** Pasa por QStash y por Apple/Google: puede llegar con unos segundos de retraso.
+- **iPhone:** suena el tono de notificación del sistema (no se puede personalizar desde una web) y hay desarrolladores que reportan push de iOS que dejan de llegar de forma intermitente; por eso existe el respaldo local.
+- Si pausas a menos de un segundo del final, el aviso puede estar ya en camino y llegar igualmente.
+- Si QStash no está disponible no hay aviso (el respaldo local solo cubre la app abierta).
+- Si cambias las claves VAPID, las suscripciones existentes dejan de valer: hay que desactivar y volver a activar los avisos en cada dispositivo.
+- Sin base de datos no se pueden enviar avisos «por tu cuenta» desde otro sitio ni detectar suscripciones caducadas. Si se quieren avisos de otro tipo, habrá que guardar las suscripciones en una tabla.
+- **Las pruebas automáticas no verifican la entrega real**, solo la lógica. La entrega se comprueba con [docs/push-pruebas-manuales.md](docs/push-pruebas-manuales.md).
+
+Para probar solo el envío, sin QStash, `scripts/push-deliver-test.mjs` firma una petición como lo haría QStash (instrucciones en la cabecera del archivo). No subas al repositorio el archivo con tu suscripción: quien lo tenga puede enviar avisos a ese dispositivo hasta que se desactive.
+
 ## Registro de series
 
 `/entrenar` detecta la fecha local del dispositivo, permite filtrar el catálogo cerrado por grupo muscular y ejercicio, muestra las series del día y registra kilos y repeticiones. Se pueden eliminar series con confirmación. El descanso automático se puede desactivar o configurar entre 1 y 5 minutos mediante los valores predefinidos.
@@ -82,7 +133,7 @@ npm run build
 
 Los iconos PWA y la mascota de GymRat (cara de rata caricaturesca) se generan con `scripts/generate-icons.mjs` (sin dependencias) antes de `dev` y `build`; no se versionan.
 
-Definir en `.env.local` las variables de [.env.example](.env.example). Solo se usan en el servidor; no requieren el prefijo `NEXT_PUBLIC_` ni una clave administrativa. No se han instalado paquetes para esta migración.
+Definir en `.env.local` las variables de [.env.example](.env.example). Solo se usan en el servidor; no requieren el prefijo `NEXT_PUBLIC_` ni una clave administrativa. No se han instalado paquetes para esta migración ni para las notificaciones push. Las variables de push (VAPID y QStash) también son solo de servidor, salvo `NEXT_PUBLIC_VAPID_PUBLIC_KEY`, que es pública por diseño; ver [Notificaciones del cronómetro](#notificaciones-del-cronómetro).
 
 ## Historial
 
@@ -184,6 +235,9 @@ El contexto enviado al proveedor excluye email, identificador de cuenta, foto y 
 2. Añadir `SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY` y `GROQ_API_KEY` en las variables de entorno de Vercel, con los valores del proyecto correspondiente a Production o Preview.
 3. Aplicar previamente la migración y el seed en Supabase y configurar las URLs de Auth para el dominio de Vercel o el dominio propio.
 4. Desplegar y comprobar alta sin confirmación de correo, acceso inmediato, recarga, cierre de sesión y aislamiento entre dos usuarios. Vercel no aplica las migraciones automáticamente durante el build.
+5. **Notificaciones del cronómetro.** Genera las claves con `node scripts/generate-vapid.mjs` y añade en Vercel (Production y Preview) `NEXT_PUBLIC_VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT`, `QSTASH_TOKEN`, `QSTASH_CURRENT_SIGNING_KEY`, `QSTASH_NEXT_SIGNING_KEY`, `APP_URL` y, si tu cuenta de Upstash no es la de EE. UU., `QSTASH_URL`. `APP_URL` debe ser la URL pública de producción que QStash pueda alcanzar. `NEXT_PUBLIC_VAPID_PUBLIC_KEY` se incorpora al compilar: tras añadirla o cambiarla hay que **volver a desplegar**.
+6. **Deployment Protection.** Si Vercel protege los despliegues de preview, QStash no podrá llamar a `/api/push/deliver` en ellos. Las pruebas reales de push se hacen en producción (o en un despliegue sin protección).
+7. Tras desplegar, reinstala la app en el móvil si hace falta (iPhone: desde *Añadir a pantalla de inicio*) y repite la lista de [docs/push-pruebas-manuales.md](docs/push-pruebas-manuales.md).
 
 ## Pruebas
 
@@ -202,6 +256,8 @@ npm test
 ```
 
 Se comprueban los flujos de Auth, entrenamiento y perfil con respuestas simuladas, los contratos estáticos de RLS, la idempotencia del SQL del catálogo en SQLite y el cronómetro con reloj y almacenamiento simulados. Las pruebas de perfil incluyen propiedad de los datos, URL HTTPS, renovación de cookies y ausencia de descargas de imágenes desde el servidor. Las de entrenamiento cubren validación, autorización, renovación, privacidad y conservación del identificador de reintento. Las del cronómetro cubren bloqueos, pausas, recargas, sincronización entre pestañas, limpieza de recursos y fallo de almacenamiento. Eso no equivale a validar PostgreSQL, concurrencia real, la entrega de correos ni la interfaz en navegador.
+
+Las pruebas de las notificaciones del cronómetro (`scripts/push.test.mjs`) cubren el cifrado Web Push (con el vector del RFC 8291), la firma VAPID, la verificación de la firma de QStash, la lista permitida de endpoints, los límites de `seconds` y de `label`, las rutas `schedule`, `cancel` y `deliver` con dependencias simuladas, que `404`/`410` no provoquen reintentos, `syncTimerPush` con almacenamiento y `fetch` simulados (una llamada por acción, nada si coincide `endsAt`, cancelación en pausa/reset/configure, reagendado en `extend`), el service worker y el respaldo local, y que los errores no filtren la clave VAPID ni el token de QStash. No hay red real: la entrega en dispositivo se comprueba a mano con [docs/push-pruebas-manuales.md](docs/push-pruebas-manuales.md).
 
 Para ejecutar además la prueba RLS real, definir `SUPABASE_TEST_DATABASE_URL` fuera del repositorio y disponer de `psql`. Debe apuntar a una base Supabase **de pruebas**, con las ocho migraciones aplicadas y un usuario propietario capaz de insertar fixtures en `auth.users` y cambiar de rol. La prueba carga el catálogo, crea dos usuarios, comprueba permisos, entrenamiento, perfil, historial, recap, contexto del Coach y cuotas, finalización, avisos y rankings voluntarios, y termina con `ROLLBACK`. No usar producción. Sin esa variable, la prueba se omite explícitamente.
 

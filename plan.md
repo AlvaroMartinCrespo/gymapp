@@ -139,6 +139,14 @@ Estado: reloj global, pantalla, píldora y conexión de startRest al guardado co
 Crear un estado global (TimerContext + localStorage para que no se pare al bloquear el móvil).
 Diseñar la Mini-Pill flotante superior que se activa sola al guardar una serie.
 Diseñar la página dedicada de Cronómetro estilo Xiaomi.
+Ampliación del Paso 3.4: Notificación push al terminar el descanso (aunque la app esté cerrada o el móvil bloqueado):
+Estado: implementada sin instalar dependencias ni tocar Supabase. Service worker (`public/sw.js`) que siempre muestra la notificación, claves VAPID (`scripts/generate-vapid.mjs`), botón de activación en `/cronometro`, rutas `/api/push/schedule`, `/api/push/cancel` y `/api/push/deliver`, programación con QStash (retardo, sin reintentos, firma verificada) y `syncTimerPush` conectado a `TimerProvider` tras cada acción del usuario y al volver a primer plano, con respaldo local si no hay push. La suscripción no se guarda en base de datos: viaja en el mensaje de QStash. Pruebas automáticas en `scripts/push.test.mjs` superadas (no verifican la entrega real). Pendientes: configurar Upstash y las variables en Vercel, desplegar en producción y completar la lista de `docs/push-pruebas-manuales.md` en un iPhone (iOS 16.4+, app instalada) y/o Android. Documentación en README, sección «Notificaciones del cronómetro».
+Crear public/sw.js, registrarlo y servirlo sin caché (cabeceras de /sw.js en next.config.ts).
+Generar claves VAPID y definir las variables de entorno (.env.example y Vercel).
+Botón «Activar avisos» con estados: no soportado, iPhone sin instalar, desactivadas, activadas y bloqueadas.
+Rutas de envío, agendado y cancelación con validaciones (lista permitida de endpoints, segundos 1-3600, mismo origen).
+Sincronizar el aviso con el cronómetro: start, startRest, pause, reset, configure y extend; el cronómetro ascendente no agenda.
+Respaldo local con la app abierta sin push activo, sin duplicar avisos.
 Fase 4: Perfil, Detector de Fatiga, Historial, Recap y Rankings
 Paso 4.1: Construir la página de Perfil:
 Estado: pantalla, API autenticada y consulta SQL implementadas; avatar HTTPS, frases en JSON y resumen sin datos ficticios. Pruebas simuladas y contratos de permisos superados. Aplicación de la tercera migración y comprobación real en navegador/Supabase pendientes.

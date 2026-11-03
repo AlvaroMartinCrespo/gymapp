@@ -4,6 +4,7 @@ import { Check, CheckCheck, Hourglass, Pause, Play, Plus, RotateCcw, Timer } fro
 import type { FormEvent } from "react";
 
 import { formatTimer, MAX_REST_SECONDS, type TimerMode } from "@/lib/timer";
+import { PushToggle } from "./push-toggle";
 import { useTimer } from "./timer-provider";
 
 const presets = [60, 90, 120, 180, 300];
@@ -92,6 +93,7 @@ export function TimerPanel() {
           </form>
         </div>
       )}
+      <PushToggle />
       {ready && !persistent && <p role="alert" className="mt-6 break-words text-sm text-primary">El navegador no permite guardar el cronómetro. Seguirá funcionando aquí, pero se perderá al cerrar o recargar.</p>}
     </section>
   );

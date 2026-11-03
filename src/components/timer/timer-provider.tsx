@@ -1,6 +1,9 @@
 "use client";
 
-import { createContext, useContext, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
+
+import { hasScheduledPush, showLocalTimerNotification, syncTimerPush } from "@/lib/push/client";
+import { pushEndsAt, shouldNotifyLocally } from "@/lib/push/sync.mjs";
 
 import {
   CARDIO_TIMER_STORAGE_KEY,
@@ -20,6 +23,8 @@ type CardioTimerContextValue = TimerSnapshot & {
 };
 type TimerContextValue = CardioTimerContextValue & {
   startRest: (seconds?: number, label?: string) => void;
+  /** Ajusta el aviso push al estado actual del cronómetro (p. ej. justo después de activar los avisos). */
+  syncPush: () => void;
 };
 
 const TimerContext = createContext<TimerContextValue | null>(null);
@@ -35,23 +40,63 @@ export function TimerProvider({ children }: { children: React.ReactNode }) {
   const snapshot = useSyncExternalStore(store.subscribe, store.getSnapshot, store.getServerSnapshot);
   const cardioSnapshot = useSyncExternalStore(cardioStore.subscribe, cardioStore.getSnapshot, cardioStore.getServerSnapshot);
   const previousStatus = useRef(snapshot.timer.status);
+  // Fin y nombre del último descanso en marcha: al terminar, el estado ya no los conserva.
+  const lastRun = useRef<{ endsAt: number; label: string } | null>(null);
 
   useEffect(() => {
-    if (previousStatus.current === "running" && snapshot.timer.status === "finished") {
+    const { timer } = snapshot;
+    if (previousStatus.current === "running" && timer.status === "finished") {
       navigator.vibrate?.([120, 60, 120]);
+      // Respaldo local: solo si no hay un push programado para este fin y el fin es reciente (ver shouldNotifyLocally).
+      const run = lastRun.current;
+      if (run && shouldNotifyLocally({ run, mode: timer.mode, now: Date.now(), hasPush: hasScheduledPush })) {
+        void showLocalTimerNotification(run.label);
+      }
     }
-    previousStatus.current = snapshot.timer.status;
-  }, [snapshot.timer.status]);
+    const endsAt = pushEndsAt(timer);
+    lastRun.current = endsAt === null ? null : { endsAt, label: timer.label };
+    previousStatus.current = timer.status;
+  }, [snapshot]);
+
+  // El aviso push se ajusta tras cada acción del usuario, no observando el estado: el estado se sincroniza
+  // entre pestañas y cada una programaría el aviso por su cuenta. `syncTimerPush` es idempotente.
+  const syncPush = useCallback(() => {
+    const current = store.getSnapshot();
+    if (current.ready) void syncTimerPush(current.timer);
+  }, [store]);
+
+  const dispatch = useCallback((action: TimerAction) => {
+    store.dispatch(action);
+    if (action.type !== "tick") syncPush();
+  }, [store, syncPush]);
+
+  // Al abrir la app y al volver a primer plano se repara un aviso perdido (p. ej. se programó sin conexión).
+  useEffect(() => {
+    if (snapshot.ready) syncPush();
+  }, [snapshot.ready, syncPush]);
+
+  useEffect(() => {
+    const repair = () => {
+      if (document.visibilityState === "visible") syncPush();
+    };
+    document.addEventListener("visibilitychange", repair);
+    window.addEventListener("focus", repair);
+    return () => {
+      document.removeEventListener("visibilitychange", repair);
+      window.removeEventListener("focus", repair);
+    };
+  }, [syncPush]);
 
   const restValue = useMemo<TimerContextValue>(() => ({
     ...snapshot,
     value: timerValue(snapshot.timer, snapshot.now),
     elapsed: elapsedTime(snapshot.timer, snapshot.now),
-    dispatch: store.dispatch,
+    dispatch,
+    syncPush,
     startRest: (seconds = snapshot.timer.durationMs / 1000, label) => {
-      store.dispatch({ type: "startRest", seconds, label });
+      dispatch({ type: "startRest", seconds, label });
     },
-  }), [snapshot, store]);
+  }), [snapshot, dispatch, syncPush]);
 
   const cardioValue = useMemo<CardioTimerContextValue>(() => ({
     ...cardioSnapshot,
