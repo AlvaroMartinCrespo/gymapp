@@ -7,6 +7,7 @@ import { Check, CircleCheck, Copy, Dumbbell, LoaderCircle, LogIn, Plus, RefreshC
 import exercises from "@/db/exercises.json";
 import { MuscleViewer3D } from "@/components/anatomy/muscle-viewer-3d";
 import { useTimer } from "@/components/timer/timer-provider";
+import { LbConverter } from "@/components/training/lb-converter";
 import { useLocalDate } from "@/components/training/use-local-date";
 import { Button } from "@/components/ui/button";
 import { summarizeWorkoutDay } from "@/lib/history";
@@ -232,6 +233,8 @@ export function TrainingPanel() {
       </div>
 
       <MuscleViewer3D primary={exercise.primaryMeshes} secondary={exercise.secondaryMeshes} camera={exercise.defaultCamera} />
+
+      <LbConverter />
 
       <div aria-busy={loading} className="border-t border-border pt-5">
         <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
