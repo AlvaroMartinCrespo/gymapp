@@ -1,8 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState, useSyncExternalStore } from "react";
-import { ArrowDown, ArrowUp, CalendarDays, LoaderCircle, LogIn, Minus, RefreshCw } from "lucide-react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
+import { ArrowDown, ArrowUp, CalendarDays, LoaderCircle, LogIn, Minus, RefreshCw, Sparkles } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { MuscleViewer3D } from "@/components/anatomy/muscle-viewer-3d";
@@ -22,6 +22,7 @@ type Recap = {
   muscles?: { mesh: string; primary_sets: number; secondary_sets: number }[];
 };
 type View = { key: string; data: Recap | null; error: string; loginRequired: boolean };
+type AiSummary = { key: string; text: string | null; error: string };
 
 const periods = [{ value: "week", label: "Semana" }, { value: "month", label: "Mes" }, { value: "year", label: "Año" }] as const;
 const metrics: { field: keyof Summary; label: string }[] = [
@@ -53,12 +54,15 @@ export function RecapPanel() {
   const [period, setPeriod] = useState<Period>("week");
   const [reload, setReload] = useState(0);
   const [view, setView] = useState<View>({ key: "", data: null, error: "", loginRequired: false });
+  const [ai, setAi] = useState<AiSummary>({ key: "", text: null, error: "" });
+  const aiCache = useRef(new Map<string, string | null>());
   const date = selected || today;
   const queryKey = `${date}:${period}:${reload}`;
   const loading = !date || view.key !== queryKey;
   const data = loading ? null : view.data;
   const maxVolume = Math.max(1, ...(data?.buckets.map((bucket) => bucket.volume) ?? []));
   const maxSets = Math.max(1, ...(data?.categories.map((category) => category.sets) ?? []));
+  const aiLoading = !date || ai.key !== queryKey;
 
   useEffect(() => {
     if (!date) return;
@@ -78,6 +82,39 @@ export function RecapPanel() {
       }
     }
     void load();
+    return () => controller.abort();
+  }, [date, period, queryKey]);
+
+  useEffect(() => {
+    if (!date) return;
+    const controller = new AbortController();
+    async function loadSummary() {
+      const cached = aiCache.current.get(queryKey);
+      if (cached !== undefined) {
+        setAi({ key: queryKey, text: cached, error: "" });
+        return;
+      }
+      try {
+        const response = await fetch("/api/recap-summary", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ date, period }),
+          signal: controller.signal,
+        });
+        const result = await response.json();
+        if (controller.signal.aborted) return;
+        if (response.ok) {
+          const text = typeof result.summary === "string" ? result.summary : null;
+          aiCache.current.set(queryKey, text);
+          setAi({ key: queryKey, text, error: "" });
+        } else {
+          setAi({ key: queryKey, text: null, error: result.error ?? "No se ha podido generar el resumen." });
+        }
+      } catch {
+        if (!controller.signal.aborted) setAi({ key: queryKey, text: null, error: "No se ha podido generar el resumen." });
+      }
+    }
+    void loadSummary();
     return () => controller.abort();
   }, [date, period, queryKey]);
 
@@ -106,6 +143,15 @@ export function RecapPanel() {
             <p className="text-sm font-medium text-foreground">{dateLabel(data.range.current_start)} a {dateLabel(data.range.current_end)}</p>
             <p>Frente a {dateLabel(data.range.previous_start)} a {dateLabel(data.range.previous_end)}</p>
           </div>
+
+          {data.current.sets > 0 && (aiLoading || ai.text || ai.error) && (
+            <section aria-labelledby="recap-ai-heading" aria-live="polite" className="space-y-2 border-l-2 border-primary pl-4">
+              <h2 id="recap-ai-heading" className="flex items-center gap-2 section-heading"><Sparkles className="size-4 text-primary" />Resumen del entrenador</h2>
+              {aiLoading ? <p role="status" className="flex items-center gap-2 text-sm text-muted-foreground"><LoaderCircle className="size-4 animate-spin" />Analizando tu {period === "week" ? "semana" : period === "month" ? "mes" : "año"}...</p>
+                : ai.text ? <p className="text-sm leading-relaxed">{ai.text}</p>
+                : <p className="text-sm text-muted-foreground">{ai.error}</p>}
+            </section>
+          )}
 
           <dl className="grid grid-cols-2 gap-x-5 gap-y-6 border-y border-border py-5">
             {metrics.map(({ field, label }) => {
