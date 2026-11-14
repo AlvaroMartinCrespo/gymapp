@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { ArrowLeft, BatteryLow, Bot, HeartPulse, LoaderCircle, LogIn, Pencil, Plus, RotateCcw, Send, Square, TrendingUp } from "lucide-react";
 
+import { Alert } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 
 type Message = { role: "user" | "assistant"; content: string };
@@ -102,11 +103,11 @@ export function CoachPanel() {
   return (
     <section aria-labelledby="coach-heading" className="min-w-0 space-y-5">
       <header className="flex items-center gap-3">
-        <Link href="/" title="Volver al perfil" aria-label="Volver al perfil" className="flex size-11 shrink-0 items-center justify-center rounded-lg border border-border outline-none hover:bg-card focus-visible:ring-2 focus-visible:ring-ring md:hidden"><ArrowLeft className="size-4" /></Link>
+        <Link href="/" title="Volver al perfil" aria-label="Volver al perfil" className="flex size-11 shrink-0 items-center justify-center rounded-xl border border-border outline-none hover:bg-card focus-visible:ring-2 focus-visible:ring-ring md:hidden"><ArrowLeft className="size-4" /></Link>
         <div className="min-w-0 flex-1">
-          <h1 id="coach-heading" className="text-2xl font-semibold">Coach IA</h1>
+          <h1 id="coach-heading" className="type-page">Coach IA</h1>
         </div>
-        <Button type="button" size="icon" variant="outline" className="rounded-lg" disabled={sending || messages.length === 0} title="Nueva conversación" aria-label="Nueva conversación" onClick={reset}><Plus className="size-4" /></Button>
+        <Button type="button" size="icon" variant="outline" disabled={sending || messages.length === 0} title="Nueva conversación" aria-label="Nueva conversación" onClick={reset}><Plus className="size-4" /></Button>
       </header>
 
       <details className="text-xs leading-relaxed text-muted-foreground">
@@ -115,9 +116,9 @@ export function CoachPanel() {
       </details>
 
       {messages.length === 0 && (
-        <div className="grid gap-2 border-y border-border py-5 sm:grid-cols-3">
+        <div className="grid gap-2 sm:grid-cols-3">
           {prompts.map(({ label, icon: Icon, message }) => (
-            <Button key={label} type="button" variant="outline" disabled={sending} className="h-auto min-h-12 justify-start whitespace-normal rounded-lg px-3 py-3" onClick={() => { setDraft(message); input.current?.focus(); }}><Icon className="size-4 text-primary" />{label}</Button>
+            <Button key={label} type="button" variant="outline" disabled={sending} className="h-auto min-h-12 justify-start whitespace-normal rounded-xl px-3 py-3" onClick={() => { setDraft(message); input.current?.focus(); }}><Icon className="size-4 text-primary" />{label}</Button>
           ))}
         </div>
       )}
@@ -135,26 +136,26 @@ export function CoachPanel() {
 
       {truncated && <p role="status" className="text-xs text-muted-foreground">Respuesta parcial por el límite de salida. Puedes pedir que continúe.</p>}
       {error && (
-        <div className="space-y-3 border-t border-border pt-4">
-          <p role="alert" className="break-words text-sm text-primary">{error}</p>
+        <div className="space-y-3">
+          <Alert variant="error">{error}</Alert>
           <div className="flex flex-wrap gap-2">
-            {loginRequired && <Button asChild className="rounded-lg"><Link href="/acceso"><LogIn className="size-4" />Iniciar sesión</Link></Button>}
+            {loginRequired && <Button asChild><Link href="/acceso"><LogIn className="size-4" />Iniciar sesión</Link></Button>}
             {unanswered && !sending && <>
-              <Button type="button" variant="outline" className="rounded-lg" onClick={() => void send(messages)}><RotateCcw className="size-4" />Reintentar</Button>
-              <Button type="button" size="icon" variant="outline" className="rounded-lg" title="Editar consulta" aria-label="Editar consulta" onClick={edit}><Pencil className="size-4" /></Button>
+              <Button type="button" variant="outline" onClick={() => void send(messages)}><RotateCcw className="size-4" />Reintentar</Button>
+              <Button type="button" size="icon" variant="outline" title="Editar consulta" aria-label="Editar consulta" onClick={edit}><Pencil className="size-4" /></Button>
             </>}
           </div>
         </div>
       )}
 
-      <form onSubmit={submit} className="space-y-2 border-t border-border pt-4">
+      <form onSubmit={submit} className="surface-1 space-y-2 rounded-2xl p-4">
         <label htmlFor="coach-message" className="text-sm font-medium">Tu consulta</label>
         <div className="flex items-end gap-2">
-          <textarea ref={input} id="coach-message" value={draft} onChange={(event) => setDraft(event.target.value)} maxLength={2000} rows={3} disabled={sending || unanswered} className="min-h-24 min-w-0 flex-1 resize-y rounded-lg border border-input bg-card p-3 text-base outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50" />
-          {sending ? <Button type="button" size="icon" variant="outline" className="rounded-lg" title="Cancelar consulta" aria-label="Cancelar consulta" onClick={() => controller.current?.abort()}><Square className="size-4" /></Button>
-            : <Button type="submit" size="icon" className="rounded-lg" title="Enviar consulta" aria-label="Enviar consulta" disabled={unanswered || !draft.trim()}><Send className="size-4" /></Button>}
+          <textarea ref={input} id="coach-message" value={draft} onChange={(event) => setDraft(event.target.value)} maxLength={2000} rows={3} disabled={sending || unanswered} className="min-h-24 min-w-0 flex-1 resize-y rounded-xl border border-input bg-card p-3 text-base outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50" />
+          {sending ? <Button type="button" size="icon" variant="outline" title="Cancelar consulta" aria-label="Cancelar consulta" onClick={() => controller.current?.abort()}><Square className="size-4" /></Button>
+            : <Button type="submit" size="icon" title="Enviar consulta" aria-label="Enviar consulta" disabled={unanswered || !draft.trim()}><Send className="size-4" /></Button>}
         </div>
-        <p className="text-right text-xs tabular-nums text-muted-foreground">{draft.length}/2000</p>
+        <p className="type-label text-right font-mono tabular-nums">{draft.length}/2000</p>
       </form>
     </section>
   );

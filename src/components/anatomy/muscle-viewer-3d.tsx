@@ -14,7 +14,7 @@ type Props = {
 };
 
 const label = (id: string) => muscleGroups[id as keyof typeof muscleGroups] ?? id;
-const controlClass = "min-h-11 rounded-lg border border-border px-3 text-xs outline-none hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-40";
+const controlClass = "min-h-11 rounded-xl border border-border px-3 text-xs outline-none hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-40";
 
 export function MuscleViewer3D({ primary = [], secondary = [], camera = "front", heat, mode = "exercise", title = "Anatomía del ejercicio" }: Props) {
   const headingId = useId();
@@ -73,9 +73,9 @@ export function MuscleViewer3D({ primary = [], secondary = [], camera = "front",
   }
 
   return (
-    <section aria-labelledby={headingId} className="min-w-0 space-y-3 rounded-2xl border border-border bg-background p-4">
+    <section aria-labelledby={headingId} className="surface-1 min-w-0 space-y-3 rounded-2xl p-4">
       <header className="space-y-1">
-        <h2 id={headingId} className="section-heading">{title}</h2>
+        <h2 id={headingId} className="type-section">{title}</h2>
       </header>
       <div className="relative h-[360px] overflow-hidden rounded-xl border border-border sm:h-[440px]" aria-busy={status === "loading"}>
         {status !== "error" && <iframe

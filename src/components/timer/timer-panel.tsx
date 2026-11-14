@@ -3,6 +3,10 @@
 import { Check, CheckCheck, Hourglass, Pause, Play, Plus, RotateCcw, Timer } from "lucide-react";
 import type { FormEvent } from "react";
 
+import { Alert } from "@/components/ui/alert";
+import { Card } from "@/components/ui/card";
+import { Field } from "@/components/ui/field";
+import { Input } from "@/components/ui/input";
 import { formatTimer, MAX_REST_SECONDS, type TimerMode } from "@/lib/timer";
 import { PushToggle } from "./push-toggle";
 import { useTimer } from "./timer-provider";
@@ -34,7 +38,7 @@ export function TimerPanel() {
   return (
     <section className="mx-auto w-full max-w-lg" aria-labelledby="timer-heading">
       <header className="mb-6">
-        <h1 id="timer-heading" className="text-2xl font-semibold">Cronómetro</h1>
+        <h1 id="timer-heading" className="type-page">Cronómetro</h1>
       </header>
       <div role="group" aria-label="Modo de tiempo" className="grid grid-cols-2 border-b border-border">
         <button type="button" aria-pressed={rest} disabled={!ready || active} onClick={() => configureMode("rest")} className={`flex min-h-12 items-center justify-center gap-2 border-b-2 px-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed ${rest ? "border-primary text-foreground" : "border-transparent text-muted-foreground"}`}>
@@ -62,7 +66,7 @@ export function TimerPanel() {
           <RotateCcw className="size-5" />
         </button>
         <button type="button" title={command} aria-label={command} disabled={!ready} onClick={() => dispatch({ type: running ? "pause" : "start" })} className="flex size-20 items-center justify-center rounded-full bg-primary text-primary-foreground outline-none hover:bg-primary/90 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-4 focus-visible:ring-offset-background disabled:opacity-40">
-          {running ? <Pause className="size-7" /> : finished ? <RotateCcw className="size-7" /> : <Play className="size-7" />}
+          {running ? <Pause className="size-6" /> : finished ? <RotateCcw className="size-6" /> : <Play className="size-6" />}
         </button>
         <button type="button" title="Añadir 30 segundos" aria-label="Añadir 30 segundos al descanso" disabled={!ready || !rest || !active || timer.durationMs >= MAX_REST_SECONDS * 1000} onClick={() => dispatch({ type: "extend", seconds: 30 })} className={iconButton}>
           <Plus className="size-5" />
@@ -70,31 +74,30 @@ export function TimerPanel() {
       </div>
 
       {rest && (
-        <div className="mt-8 border-t border-border pt-6">
+        <Card className="mt-8">
           <fieldset disabled={!ready || active}>
             <legend className="mb-3 text-sm font-medium">Duración del descanso</legend>
             <div className="grid grid-cols-5 gap-2">
               {presets.map((seconds) => (
                 <label key={seconds} className="relative cursor-pointer">
                   <input type="radio" name="rest-preset" value={seconds} checked={timer.durationMs === seconds * 1000} onChange={() => dispatch({ type: "configure", mode: "rest", seconds })} className="peer sr-only" />
-                  <span className="flex h-11 items-center justify-center rounded-lg border border-border font-mono text-sm tabular-nums peer-checked:border-primary peer-checked:bg-primary/10 peer-checked:text-primary peer-focus-visible:ring-2 peer-focus-visible:ring-ring peer-disabled:cursor-not-allowed peer-disabled:opacity-50">{formatTimer(seconds * 1000)}</span>
+                  <span className="flex h-11 items-center justify-center rounded-xl border border-border font-mono text-sm tabular-nums peer-checked:border-primary peer-checked:bg-primary/10 peer-checked:text-primary peer-focus-visible:ring-2 peer-focus-visible:ring-ring peer-disabled:cursor-not-allowed peer-disabled:opacity-50">{formatTimer(seconds * 1000)}</span>
                 </label>
               ))}
             </div>
           </fieldset>
           <form onSubmit={configureDuration} className="mt-5 flex flex-wrap items-end gap-3">
-            <div className="min-w-0 flex-1 space-y-2">
-              <label htmlFor="rest-seconds" className="block text-sm text-muted-foreground">Duración en segundos</label>
-              <input key={timer.durationMs} id="rest-seconds" name="seconds" type="number" inputMode="numeric" min={1} max={MAX_REST_SECONDS} step={1} required defaultValue={timer.durationMs / 1000} disabled={!ready || active} className="h-11 w-full min-w-0 rounded-lg border border-input bg-card px-3 font-mono text-base outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50" />
-            </div>
-            <button type="submit" title="Aplicar duración" aria-label="Aplicar duración del descanso" disabled={!ready || active} className="flex size-11 shrink-0 items-center justify-center rounded-lg border border-border bg-card outline-none hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-40">
+            <Field label="Duración en segundos" className="flex-1" labelClassName="font-normal text-muted-foreground">
+              <Input key={timer.durationMs} id="rest-seconds" name="seconds" type="number" inputMode="numeric" min={1} max={MAX_REST_SECONDS} step={1} required defaultValue={timer.durationMs / 1000} disabled={!ready || active} className="h-11 font-mono" />
+            </Field>
+            <button type="submit" title="Aplicar duración" aria-label="Aplicar duración del descanso" disabled={!ready || active} className="flex size-11 shrink-0 items-center justify-center rounded-xl border border-border bg-card outline-none hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-40">
               <Check className="size-5" />
             </button>
           </form>
-        </div>
+        </Card>
       )}
       <PushToggle />
-      {ready && !persistent && <p role="alert" className="mt-6 break-words text-sm text-primary">El navegador no permite guardar el cronómetro. Seguirá funcionando aquí, pero se perderá al cerrar o recargar.</p>}
+      {ready && !persistent && <Alert variant="warning" className="mt-6">El navegador no permite guardar el cronómetro. Seguirá funcionando aquí, pero se perderá al cerrar o recargar.</Alert>}
     </section>
   );
 }

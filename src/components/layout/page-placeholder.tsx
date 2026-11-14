@@ -11,7 +11,7 @@ export function PagePlaceholder({
 }) {
   return (
     <div className="flex flex-col gap-6">
-      <h1 className="text-3xl font-semibold tracking-tight">{title}</h1>
+      <h1 className="type-page">{title}</h1>
       <Card>
         <CardTitle>{description}</CardTitle>
         <CardDescription>Se construye en la {phase}.</CardDescription>

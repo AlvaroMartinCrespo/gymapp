@@ -3,12 +3,13 @@
 import { Bell, BellOff } from "lucide-react";
 import { useEffect, useState } from "react";
 
+import { Alert } from "@/components/ui/alert";
 import { cancelPendingPush, getPushStatus, PushError, subscribePush, unsubscribePush, type PushStatus } from "@/lib/push/client";
 import { useTimer } from "./timer-provider";
 
 type Busy = "enabling" | "disabling" | null;
 
-const button = "inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-border bg-card px-4 text-sm font-medium outline-none hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50";
+const button = "inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-border bg-card px-4 text-sm font-medium outline-none hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50";
 
 /** Activa o desactiva los avisos push del descanso en este dispositivo. */
 export function PushToggle() {
@@ -109,7 +110,7 @@ export function PushToggle() {
         </>
       )}
 
-      {error && <p role="alert" className="mt-3 break-words text-sm text-primary">{error}</p>}
+      {error && <Alert variant="error" className="mt-3">{error}</Alert>}
     </div>
   );
 }

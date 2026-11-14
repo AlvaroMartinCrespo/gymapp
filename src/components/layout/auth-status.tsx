@@ -1,8 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
-import { LoaderCircle, LogIn, LogOut, UserRound } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { LoaderCircle, LogIn, LogOut, User } from "lucide-react";
 
 type Account = { id: string; email: string | null; username: string | null };
 
@@ -11,6 +11,9 @@ export function AuthStatus() {
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menu = useRef<HTMLDivElement>(null);
+  const trigger = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -54,6 +57,23 @@ export function AuthStatus() {
     };
   }, []);
 
+  useEffect(() => {
+    if (!menuOpen) return;
+    menu.current?.querySelector<HTMLElement>('[role="menuitem"]')?.focus();
+    function onPointer(event: PointerEvent) {
+      if (!menu.current?.contains(event.target as Node) && !trigger.current?.contains(event.target as Node)) setMenuOpen(false);
+    }
+    function onKey(event: KeyboardEvent) {
+      if (event.key === "Escape") { setMenuOpen(false); trigger.current?.focus(); }
+    }
+    document.addEventListener("pointerdown", onPointer);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("pointerdown", onPointer);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [menuOpen]);
+
   async function logout() {
     setBusy(true);
     setError("");
@@ -82,16 +102,33 @@ export function AuthStatus() {
       {loading ? (
         <span role="status" className="flex min-h-11 items-center gap-2 text-muted-foreground"><LoaderCircle className="size-4 animate-spin" />Comprobando sesión...</span>
       ) : user ? (
-        <div className="flex min-w-0 items-center gap-3">
-          <span className="flex min-w-0 max-w-full items-center gap-2"><UserRound className="size-4 shrink-0 text-muted-foreground" /><span className="truncate">{user.username ?? user.email ?? "Mi cuenta"}</span></span>
-          <button type="button" onClick={logout} disabled={busy} title="Cerrar sesión" aria-label="Cerrar sesión" className="flex size-11 shrink-0 items-center justify-center rounded-lg text-muted-foreground outline-none hover:bg-card hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50">
-            {busy ? <LoaderCircle className="size-4 animate-spin" /> : <LogOut className="size-4" />}
+        <div className="relative">
+          <button
+            ref={trigger}
+            type="button"
+            aria-haspopup="menu"
+            aria-expanded={menuOpen}
+            aria-label={`Menú de ${user.username ?? user.email ?? "mi cuenta"}`}
+            onClick={() => setMenuOpen((open) => !open)}
+            className="flex min-h-11 items-center gap-2 rounded-full pl-1 pr-1 outline-none hover:bg-card focus-visible:ring-2 focus-visible:ring-ring sm:pr-3"
+          >
+            <span aria-hidden="true" className="flex size-9 items-center justify-center rounded-full bg-primary/15 text-sm font-semibold uppercase text-primary">{(user.username ?? user.email ?? "?").charAt(0)}</span>
+            <span className="hidden max-w-32 truncate sm:inline">{user.username ?? user.email ?? "Mi cuenta"}</span>
           </button>
+          {menuOpen && (
+            <div ref={menu} role="menu" aria-label="Cuenta" className="absolute right-0 top-full z-50 mt-2 w-56 surface-2 overflow-hidden rounded-2xl p-1">
+              <p className="truncate px-3 py-2 text-xs text-muted-foreground">{user.email ?? user.username}</p>
+              <Link role="menuitem" href="/" onClick={() => setMenuOpen(false)} className="flex min-h-11 items-center gap-3 rounded-xl px-3 text-sm outline-none hover:bg-accent focus-visible:bg-accent"><User className="size-4" />Perfil</Link>
+              <button role="menuitem" type="button" onClick={() => { setMenuOpen(false); void logout(); }} disabled={busy} className="flex min-h-11 w-full items-center gap-3 rounded-xl px-3 text-left text-sm outline-none hover:bg-accent focus-visible:bg-accent disabled:opacity-50">
+                {busy ? <LoaderCircle className="size-4 animate-spin" /> : <LogOut className="size-4" />}Cerrar sesión
+              </button>
+            </div>
+          )}
         </div>
       ) : (
-        <Link href="/acceso" className="flex min-h-11 items-center gap-2 rounded-lg px-2 outline-none hover:text-primary focus-visible:ring-2 focus-visible:ring-ring"><LogIn className="size-4" />Acceder</Link>
+        <Link href="/acceso" className="flex min-h-11 items-center gap-2 rounded-xl px-2 outline-none hover:text-primary focus-visible:ring-2 focus-visible:ring-ring"><LogIn className="size-4" />Acceder</Link>
       )}
-      {error && <p role="alert" className="mt-1 max-w-full break-words text-right text-xs text-primary">{error}</p>}
+      {error && <p role="alert" className="mt-1 max-w-full break-words text-right text-xs text-error">{error}</p>}
     </div>
   );
 }

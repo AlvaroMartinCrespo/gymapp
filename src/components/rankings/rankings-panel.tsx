@@ -5,18 +5,22 @@ import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import { ArrowLeft, ArrowRight, LoaderCircle, RefreshCw, Trophy, UserRound } from "lucide-react";
 import exercises from "@/db/exercises.json";
+import { Alert } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
+import { Field } from "@/components/ui/field";
+import { Select } from "@/components/ui/select";
 import { AvatarLightbox } from "@/components/ui/avatar-lightbox";
 
 type Entry = { username: string; avatar_url: string | null; weight: number; reps: number; position: number; is_me: boolean };
 type Rankings = { enabled: boolean; total: number; entries: Entry[]; personal: { weight: number; reps: number; position: number | null } | null };
 type View = { key: string; data: Rankings | null; error: string; login: boolean };
 const categories = [...new Set(exercises.map((exercise) => exercise.category))];
+const medalColors = { 1: "text-gold", 2: "text-silver", 3: "text-bronze" } as const;
 const format = new Intl.NumberFormat("es-ES", { maximumFractionDigits: 2 });
 
 function Avatar({ url, name }: { url: string | null; name: string }) {
   const [failed, setFailed] = useState(false);
-  const box = "flex size-10 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-border bg-card";
+  const box = "flex size-10 shrink-0 items-center justify-center overflow-hidden rounded-full border border-border bg-card";
   if (url && !failed) {
     return (
       <AvatarLightbox url={url} name={name} className={box}>
@@ -86,54 +90,54 @@ export function RankingsPanel() {
     <div className="mx-auto w-full max-w-4xl space-y-6 pb-6">
       <header className="flex items-center gap-3">
         <Trophy className="size-6 text-primary" aria-hidden="true" />
-        <h1 className="text-2xl font-bold">Rankings</h1>
+        <h1 className="type-page">Rankings</h1>
       </header>
       <div className="grid gap-3 sm:grid-cols-2">
-        <label className="space-y-1 text-sm font-medium">Categoría
-          <select className="mt-1 h-11 w-full rounded-md border bg-background px-3" disabled={busy} value={category} onChange={(event) => { setCategory(event.target.value); setExerciseId(exercises.find((exercise) => exercise.category === event.target.value)!.id); setPage(0); }}>
+        <Field label="Categoría">
+          <Select disabled={busy} value={category} onChange={(event) => { setCategory(event.target.value); setExerciseId(exercises.find((exercise) => exercise.category === event.target.value)!.id); setPage(0); }}>
             {categories.map((value) => <option key={value}>{value}</option>)}
-          </select>
-        </label>
-        <label className="space-y-1 text-sm font-medium">Ejercicio
-          <select className="mt-1 h-11 w-full rounded-md border bg-background px-3" disabled={busy} value={exerciseId} onChange={(event) => { setExerciseId(event.target.value); setPage(0); }}>
+          </Select>
+        </Field>
+        <Field label="Ejercicio">
+          <Select disabled={busy} value={exerciseId} onChange={(event) => { setExerciseId(event.target.value); setPage(0); }}>
             {filtered.map((exercise) => <option key={exercise.id} value={exercise.id}>{exercise.name}</option>)}
-          </select>
-        </label>
+          </Select>
+        </Field>
       </div>
       <div className="flex gap-2" role="group" aria-label="Criterio de clasificación">
         {[{ id: "weight", label: "Peso máximo" }, { id: "reps", label: "Repeticiones" }].map((mode) => <Button key={mode.id} disabled={busy} variant={metric === mode.id ? "default" : "outline"} aria-pressed={metric === mode.id} onClick={() => { setMetric(mode.id); setPage(0); }}>{mode.label}</Button>)}
       </div>
 
       {!current && <p className="flex items-center gap-2 text-sm text-muted-foreground" role="status"><LoaderCircle className="size-4 animate-spin" />Cargando clasificación...</p>}
-      {current?.error && <div className="space-y-3" role="alert"><p>{current.error}</p>{current.login ? <Button asChild><Link href="/acceso">Iniciar sesión</Link></Button> : <Button variant="outline" onClick={() => setReload((value) => value + 1)}><RefreshCw className="size-4" />Reintentar</Button>}</div>}
+      {current?.error && <div className="space-y-3"><Alert variant="error">{current.error}</Alert>{current.login ? <Button asChild><Link href="/acceso">Iniciar sesión</Link></Button> : <Button variant="outline" onClick={() => setReload((value) => value + 1)}><RefreshCw className="size-4" />Reintentar</Button>}</div>}
 
       {data && <>
-        <label className="flex items-start gap-3 border-y py-4 text-sm">
-          <input type="checkbox" className="mt-0.5 size-4 accent-red-600" checked={data.enabled} disabled={busy} onChange={(event) => void participate(event.target.checked)} />
+        <label className="surface-1 flex items-start gap-3 rounded-2xl p-4 text-sm">
+          <input type="checkbox" className="mt-0.5 size-4 accent-primary" checked={data.enabled} disabled={busy} onChange={(event) => void participate(event.target.checked)} />
           <span>Publicar mi alias y mi mejor serie en los rankings de todos los ejercicios</span>
           {busy && <LoaderCircle className="size-4 shrink-0 animate-spin" aria-label="Guardando participación" />}
         </label>
         <section aria-label={`Clasificación de ${selected.name}`} className="space-y-4">
-          <div className="flex flex-wrap items-baseline justify-between gap-2"><h2 className="section-heading">{selected.name}</h2><p className="text-sm text-muted-foreground">{format.format(data.total)} participantes · Sesiones finalizadas</p></div>
-          {data.entries.length === 0 ? <p className="py-8 text-center text-muted-foreground">{data.total === 0 ? "Aún no hay marcas publicadas." : "No hay resultados en esta página."}</p> : <ol className="divide-y border-y">
-            {data.entries.map((entry) => <li key={entry.username} className={`grid grid-cols-[2.5rem_minmax(0,1fr)_auto] items-center gap-3 py-4 ${entry.is_me ? "bg-primary/5" : ""}`}>
-              <span className="text-center font-semibold tabular-nums">{entry.position <= 3 ? <span className="inline-flex flex-col items-center"><Trophy aria-hidden="true" className={`size-4 ${entry.position === 1 ? "text-amber-500" : entry.position === 2 ? "text-zinc-400" : "text-rose-600"}`} />{entry.position}</span> : entry.position}</span>
+          <div className="flex flex-wrap items-baseline justify-between gap-2"><h2 className="type-section">{selected.name}</h2><p className="text-sm text-muted-foreground">{format.format(data.total)} participantes · Sesiones finalizadas</p></div>
+          {data.entries.length === 0 ? <p className="py-8 text-center text-muted-foreground">{data.total === 0 ? "Aún no hay marcas publicadas." : "No hay resultados en esta página."}</p> : <ol className="surface-1 divide-y divide-border overflow-hidden rounded-2xl">
+            {data.entries.map((entry) => <li key={entry.username} className={`grid grid-cols-[2.5rem_minmax(0,1fr)_auto] items-center gap-3 px-4 py-4 ${entry.is_me ? "bg-primary/5" : ""}`}>
+              <span className="type-data text-center font-semibold">{entry.position <= 3 ? <span className="inline-flex flex-col items-center"><Trophy aria-hidden="true" className={`size-4 ${medalColors[entry.position as 1 | 2 | 3]}`} />{entry.position}</span> : entry.position}</span>
               <span className="flex min-w-0 items-center gap-3">
                 <Avatar key={entry.avatar_url ?? "none"} url={entry.avatar_url} name={entry.username} />
                 <span className="min-w-0 break-all font-medium">{entry.username}{entry.is_me && <span className="ml-2 text-xs text-muted-foreground">Tú</span>}</span>
               </span>
-              <span className="text-right text-sm tabular-nums"><strong>{metric === "weight" ? `${format.format(entry.weight)} kg` : `${entry.reps} reps`}</strong><br /><span className="text-muted-foreground">{metric === "weight" ? `${entry.reps} reps` : `${format.format(entry.weight)} kg`}</span></span>
+              <span className="type-data text-right"><strong className="font-semibold">{metric === "weight" ? `${format.format(entry.weight)} kg` : `${entry.reps} reps`}</strong><br /><span className="text-muted-foreground">{metric === "weight" ? `${entry.reps} reps` : `${format.format(entry.weight)} kg`}</span></span>
             </li>)}
           </ol>}
           <nav className="flex items-center justify-between gap-3" aria-label="Páginas de clasificación">
             <Button size="icon" variant="outline" title="Página anterior" aria-label="Página anterior" disabled={busy || page === 0} onClick={() => setPage((value) => value - 1)}><ArrowLeft className="size-4" /></Button>
-            <span className="text-sm tabular-nums">{page + 1} / {Math.max(1, Math.ceil(data.total / 50))}</span>
+            <span className="type-data">{page + 1} / {Math.max(1, Math.ceil(data.total / 50))}</span>
             <Button size="icon" variant="outline" title="Página siguiente" aria-label="Página siguiente" disabled={busy || (page + 1) * 50 >= data.total} onClick={() => setPage((value) => value + 1)}><ArrowRight className="size-4" /></Button>
           </nav>
         </section>
-        <aside className="sticky bottom-20 z-10 flex flex-wrap items-center justify-between gap-2 border-y bg-background px-2 py-4 md:bottom-4" aria-label="Tu marca personal">
-          <div><p className="font-semibold">Tu mejor serie</p><p className="text-sm text-muted-foreground">{data.enabled ? data.personal?.position ? `Posición ${data.personal.position}` : "Sin posición" : "Participación privada"}</p></div>
-          <p className="text-sm tabular-nums">{data.personal ? `${format.format(data.personal.weight)} kg · ${data.personal.reps} reps` : "Sin sesiones finalizadas"}</p>
+        <aside className="surface-2 sticky bottom-20 z-10 flex flex-wrap items-center justify-between gap-2 rounded-2xl p-4 md:bottom-4" aria-label="Tu marca personal">
+          <div><p className="type-card">Tu mejor serie</p><p className="text-sm text-muted-foreground">{data.enabled ? data.personal?.position ? `Posición ${data.personal.position}` : "Sin posición" : "Participación privada"}</p></div>
+          <p className="type-data">{data.personal ? `${format.format(data.personal.weight)} kg · ${data.personal.reps} reps` : "Sin sesiones finalizadas"}</p>
         </aside>
       </>}
     </div>

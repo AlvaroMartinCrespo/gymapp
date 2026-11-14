@@ -7,10 +7,23 @@ import { createSeedSql } from "./seed.mjs";
 const migration = readFileSync(new URL("../supabase/migrations/20261029000000_initial.sql", import.meta.url), "utf8");
 const operations = readFileSync(new URL("../supabase/migrations/20261029010000_workout_operations.sql", import.meta.url), "utf8");
 const profileOverview = readFileSync(new URL("../supabase/migrations/20261029020000_profile_overview.sql", import.meta.url), "utf8");
+const profileTrend = readFileSync(new URL("../supabase/migrations/20261114000000_profile_overview_trend.sql", import.meta.url), "utf8");
 const coach = readFileSync(new URL("../supabase/migrations/20261029030000_coach.sql", import.meta.url), "utf8");
 const history = readFileSync(new URL("../supabase/migrations/20261029040000_workout_history.sql", import.meta.url), "utf8");
 const recap = readFileSync(new URL("../supabase/migrations/20261029050000_workout_recap.sql", import.meta.url), "utf8");
 const trainingAlerts = readFileSync(new URL("../supabase/migrations/20261029060000_training_alerts.sql", import.meta.url), "utf8");
+
+test("el perfil devuelve los 28 días anteriores para la tendencia sin cambiar permisos ni RLS", () => {
+  assert.match(profileTrend, /create or replace function public.get_profile_overview\(p_date date\)/);
+  assert.match(profileTrend, /security invoker/);
+  assert.doesNotMatch(profileTrend, /security definer/);
+  assert.match(profileTrend, /logs.user_id = auth.uid\(\)/);
+  assert.match(profileTrend, /date >= p_date - 27/);
+  assert.match(profileTrend, /date between p_date - 55 and p_date - 28/);
+  assert.match(profileTrend, /'previous', \(select jsonb_build_object\('days'/);
+  assert.match(profileTrend, /revoke all on function public.get_profile_overview\(date\) from public, anon/);
+  assert.match(profileTrend, /grant execute on function public.get_profile_overview\(date\) to authenticated/);
+});
 
 test("las alertas se calculan al finalizar, con muestras completas y sin duplicados semanales", () => {
   assert.match(trainingAlerts, /request_user uuid := auth.uid\(\)/);

@@ -2,12 +2,18 @@ import * as React from "react";
 
 import { cn } from "@/lib/utils";
 
-function Card({ className, ...props }: React.ComponentProps<"div">) {
+type CardProps = React.ComponentProps<"div"> & {
+  /** 1 = tarjeta (por defecto); 2 = tarjeta elevada, para lo que flota sobre el contenido. */
+  elevation?: 1 | 2;
+};
+
+function Card({ elevation = 1, className, ...props }: CardProps) {
   return (
     <div
       data-slot="card"
       className={cn(
-        "flex flex-col gap-4 rounded-2xl border bg-card p-5 text-card-foreground",
+        "flex flex-col gap-4 rounded-2xl p-5 text-card-foreground",
+        elevation === 2 ? "surface-2" : "surface-1",
         className,
       )}
       {...props}
@@ -19,7 +25,7 @@ function CardTitle({ className, ...props }: React.ComponentProps<"h3">) {
   return (
     <h3
       data-slot="card-title"
-      className={cn("text-base font-semibold leading-none", className)}
+      className={cn("type-card leading-none", className)}
       {...props}
     />
   );

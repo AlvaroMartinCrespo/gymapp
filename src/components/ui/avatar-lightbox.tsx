@@ -29,7 +29,7 @@ export function AvatarLightbox({ url, name, className = "", children }: Props) {
       {open && createPortal(
         <div role="dialog" aria-modal="true" aria-label={`Foto de ${name}`} onClick={() => setOpen(false)} className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 p-4">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={url} alt={`Foto de ${name}`} referrerPolicy="no-referrer" onClick={(event) => event.stopPropagation()} className="max-h-full max-w-full rounded-lg object-contain" />
+          <img src={url} alt={`Foto de ${name}`} referrerPolicy="no-referrer" onClick={(event) => event.stopPropagation()} className="max-h-full max-w-full rounded-xl object-contain" />
         </div>,
         document.body,
       )}

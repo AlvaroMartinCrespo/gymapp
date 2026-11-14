@@ -4,7 +4,12 @@ import Link from "next/link";
 import { useEffect, useState, useSyncExternalStore } from "react";
 import { ArrowLeft, ChevronLeft, ChevronRight, Dumbbell, LoaderCircle, LogIn, RefreshCw } from "lucide-react";
 
+import { Alert } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { Field } from "@/components/ui/field";
+import { Input } from "@/components/ui/input";
+import { Stat } from "@/components/ui/stat";
 import { calendarCells, localHistoryDate, shiftHistoryMonth } from "@/lib/history";
 
 type HistorySet = { id: string; exercise_id: string; name: string; category: string; set_number: number; weight: number; reps: number };
@@ -78,55 +83,54 @@ export function HistoryPanel() {
   return (
     <section aria-labelledby="history-heading" className="min-w-0 space-y-6">
       <header className="flex items-center gap-3">
-        <Link href="/" title="Volver al perfil" aria-label="Volver al perfil" className="flex size-11 shrink-0 items-center justify-center rounded-lg border border-border outline-none hover:bg-card focus-visible:ring-2 focus-visible:ring-ring"><ArrowLeft className="size-4" /></Link>
-        <h1 id="history-heading" className="min-w-0 flex-1 text-2xl font-semibold">Historial</h1>
-        <Button type="button" size="icon" variant="outline" className="rounded-lg" title="Actualizar historial" aria-label="Actualizar historial" disabled={loading} onClick={() => setReload((current) => current + 1)}><RefreshCw className={`size-4 ${loading ? "animate-spin" : ""}`} /></Button>
+        <Link href="/" title="Volver al perfil" aria-label="Volver al perfil" className="flex size-11 shrink-0 items-center justify-center rounded-xl border border-border outline-none hover:bg-card focus-visible:ring-2 focus-visible:ring-ring"><ArrowLeft className="size-4" /></Link>
+        <h1 id="history-heading" className="type-page min-w-0 flex-1">Historial</h1>
+        <Button type="button" size="icon" variant="outline" title="Actualizar historial" aria-label="Actualizar historial" disabled={loading} onClick={() => setReload((current) => current + 1)}><RefreshCw className={`size-4 ${loading ? "animate-spin" : ""}`} /></Button>
       </header>
 
       <div className="grid min-w-0 gap-7 lg:grid-cols-[minmax(0,22rem)_minmax(0,1fr)]">
-        <div className="min-w-0 space-y-4">
+        <Card className="min-w-0 gap-4 p-4">
           <div className="flex items-center gap-2">
-            <Button type="button" size="icon" variant="ghost" className="rounded-lg" title="Mes anterior" aria-label="Mes anterior" disabled={!previous} onClick={() => previous && setSelected(previous)}><ChevronLeft className="size-5" /></Button>
-            <h2 className="min-w-0 flex-1 text-center capitalize section-heading" aria-live="polite">{date ? dateLabel(date, true) : "Calendario"}</h2>
-            <Button type="button" size="icon" variant="ghost" className="rounded-lg" title="Mes siguiente" aria-label="Mes siguiente" disabled={!next} onClick={() => next && setSelected(next)}><ChevronRight className="size-5" /></Button>
+            <Button type="button" size="icon" variant="ghost" title="Mes anterior" aria-label="Mes anterior" disabled={!previous} onClick={() => previous && setSelected(previous)}><ChevronLeft className="size-5" /></Button>
+            <h2 className="min-w-0 flex-1 text-center capitalize type-section" aria-live="polite">{date ? dateLabel(date, true) : "Calendario"}</h2>
+            <Button type="button" size="icon" variant="ghost" title="Mes siguiente" aria-label="Mes siguiente" disabled={!next} onClick={() => next && setSelected(next)}><ChevronRight className="size-5" /></Button>
           </div>
 
           <div role="group" aria-label="Calendario mensual" className="grid grid-cols-7 gap-1">
             {weekDays.map((day, index) => <span key={index} aria-label={weekDayNames[index]} className="flex h-8 items-center justify-center text-xs text-muted-foreground">{day}</span>)}
             {(date ? calendarCells(date) : Array.from({ length: 42 }, () => null)).map((day, index) => day ? (
-              <button key={day} type="button" aria-pressed={day === date} aria-current={day === today ? "date" : undefined} aria-label={`${dateLabel(day)}${days.has(day) ? `, ${days.get(day)?.sets} series registradas` : monthData ? ", sin series" : ""}`} onClick={() => setSelected(day)} className={`relative flex h-11 min-w-0 items-center justify-center rounded-lg border text-sm tabular-nums outline-none focus-visible:ring-2 focus-visible:ring-ring ${day === date ? "border-primary bg-primary text-primary-foreground hover:bg-primary/90" : day === today ? "border-primary text-foreground hover:bg-card" : "border-transparent hover:bg-card"}`}>
+              <button key={day} type="button" aria-pressed={day === date} aria-current={day === today ? "date" : undefined} aria-label={`${dateLabel(day)}${days.has(day) ? `, ${days.get(day)?.sets} series registradas` : monthData ? ", sin series" : ""}`} onClick={() => setSelected(day)} className={`relative flex h-11 min-w-0 items-center justify-center rounded-xl border text-sm tabular-nums outline-none focus-visible:ring-2 focus-visible:ring-ring ${day === date ? "border-primary bg-primary text-primary-foreground hover:bg-primary/90" : day === today ? "border-primary text-foreground hover:bg-card" : "border-transparent hover:bg-card"}`}>
                 {Number(day.slice(8))}
                 {days.has(day) && <span aria-hidden="true" className={`absolute bottom-1 left-1/2 size-1 -translate-x-1/2 rounded-full ${day === date ? "bg-primary-foreground" : "bg-primary"}`} />}
               </button>
             ) : <span key={`empty-${index}`} aria-hidden="true" className="h-11" />)}
           </div>
 
-          <div className="flex flex-wrap items-end gap-3 border-t border-border pt-4">
-            <div className="min-w-0 flex-1 space-y-2">
-              <label htmlFor="history-date" className="block text-xs text-muted-foreground">Ir a fecha</label>
-              <input id="history-date" type="date" min="2000-01-01" max="2100-12-31" value={date} onChange={(event) => { if (event.target.value && event.target.validity.valid) setSelected(event.target.value); }} className="h-11 w-full min-w-0 rounded-lg border border-input bg-card px-3 text-base outline-none focus-visible:ring-2 focus-visible:ring-ring" />
-            </div>
-            <Button type="button" variant="outline" className="rounded-lg" disabled={!today || date === today} onClick={() => setSelected(today)}>Hoy</Button>
+          <div className="flex flex-wrap items-end gap-3">
+            <Field label="Ir a fecha" className="flex-1" labelClassName="text-xs font-normal text-muted-foreground">
+              <Input id="history-date" type="date" min="2000-01-01" max="2100-12-31" value={date} onChange={(event) => { if (event.target.value && event.target.validity.valid) setSelected(event.target.value); }} className="h-11" />
+            </Field>
+            <Button type="button" variant="outline" disabled={!today || date === today} onClick={() => setSelected(today)}>Hoy</Button>
           </div>
 
-          {monthData && <dl className="grid grid-cols-2 gap-4 border-t border-border pt-4">
-            {[ ["Días entrenados", monthData.summary.days], ["Series", monthData.summary.sets], ["Ejercicios", monthData.summary.exercises], ["Volumen (kg · rep)", monthData.summary.volume] ].map(([label, value]) => <div key={label} className="min-w-0"><dt className="text-xs text-muted-foreground">{label}</dt><dd className="mt-1 break-words text-lg font-semibold tabular-nums">{numberLabel(Number(value))}</dd></div>)}
+          {monthData && <dl className="grid grid-cols-2 gap-4">
+            {[ ["Días entrenados", monthData.summary.days], ["Series", monthData.summary.sets], ["Ejercicios", monthData.summary.exercises], ["Volumen (kg · rep)", monthData.summary.volume] ].map(([label, value]) => <Stat key={label} label={label} value={numberLabel(Number(value))} />)}
           </dl>}
-        </div>
+        </Card>
 
-        <div aria-busy={loading} className="min-w-0 space-y-5 border-t border-border pt-5 lg:border-l lg:border-t-0 lg:pl-7 lg:pt-0">
-          <h2 className="section-heading">{date ? dateLabel(date) : "Entrenamiento"}</h2>
+        <Card aria-busy={loading} className="min-w-0 gap-5">
+          <h2 className="type-section">{date ? dateLabel(date) : "Entrenamiento"}</h2>
           {loading ? <p role="status" className="flex min-h-32 items-center gap-2 text-sm text-muted-foreground"><LoaderCircle className="size-4 animate-spin" />Cargando historial...</p>
-            : !data ? <div className="space-y-4"><p role="alert" className="break-words text-sm text-primary">{view.error}</p>{view.loginRequired && <Button asChild className="rounded-lg"><Link href="/acceso"><LogIn className="size-4" />Iniciar sesión</Link></Button>}</div>
-            : data.sets.length === 0 ? <div className="space-y-4"><p className="text-sm text-muted-foreground">Sin series registradas este día.</p><Button asChild variant="outline" className="rounded-lg"><Link href="/entrenar"><Dumbbell className="size-4" />Entrenar hoy</Link></Button></div>
+            : !data ? <div className="space-y-4"><Alert variant="error">{view.error}</Alert>{view.loginRequired && <Button asChild><Link href="/acceso"><LogIn className="size-4" />Iniciar sesión</Link></Button>}</div>
+            : data.sets.length === 0 ? <div className="space-y-4"><p className="text-sm text-muted-foreground">Sin series registradas este día.</p><Button asChild variant="outline"><Link href="/entrenar"><Dumbbell className="size-4" />Entrenar hoy</Link></Button></div>
             : <>
               <p className="text-sm text-muted-foreground">{data.sets.length} series · {numberLabel(data.sets.reduce((total, set) => total + set.weight * set.reps, 0))} kg · rep</p>
-              {Array.from(exercises, ([exerciseId, exercise]) => <section key={exerciseId} aria-labelledby={`exercise-${exerciseId}`} className="min-w-0 space-y-3 border-t border-border pt-4">
+              {Array.from(exercises, ([exerciseId, exercise]) => <section key={exerciseId} aria-labelledby={`exercise-${exerciseId}`} className="min-w-0 space-y-3 rounded-xl border border-border p-4">
                 <header><h3 id={`exercise-${exerciseId}`} className="break-words text-sm font-medium">{exercise.name}</h3><p className="mt-1 text-xs text-muted-foreground">{exercise.category}</p></header>
-                <table className="w-full table-fixed text-sm tabular-nums"><caption className="sr-only">Series de {exercise.name}</caption><thead><tr className="text-xs text-muted-foreground"><th scope="col" className="py-2 text-left font-normal">Serie</th><th scope="col" className="py-2 text-right font-normal">Peso (kg)</th><th scope="col" className="py-2 text-right font-normal">Reps</th></tr></thead><tbody>{exercise.sets.map((set) => <tr key={set.id} className="border-t border-border"><th scope="row" className="py-3 text-left font-normal">{set.set_number}</th><td className="py-3 text-right">{numberLabel(set.weight)}</td><td className="py-3 text-right">{set.reps}</td></tr>)}</tbody></table>
+                <table className="w-full table-fixed text-sm tabular-nums"><caption className="sr-only">Series de {exercise.name}</caption><thead><tr className="text-xs text-muted-foreground"><th scope="col" className="py-2 text-left font-normal">Serie</th><th scope="col" className="py-2 text-right font-normal">Peso (kg)</th><th scope="col" className="py-2 text-right font-normal">Reps</th></tr></thead><tbody>{exercise.sets.map((set) => <tr key={set.id} className="border-t border-border"><th scope="row" className="py-3 text-left font-normal">{set.set_number}</th><td className="py-3 text-right font-mono">{numberLabel(set.weight)}</td><td className="py-3 text-right font-mono">{set.reps}</td></tr>)}</tbody></table>
               </section>)}
             </>}
-        </div>
+        </Card>
       </div>
     </section>
   );

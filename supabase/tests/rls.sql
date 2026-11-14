@@ -119,6 +119,10 @@ begin
     or jsonb_array_length(previous -> 'activity') <> 7 then
     raise exception 'El resumen de perfil incluye dias vacios o totales incorrectos';
   end if;
+  if (previous -> 'previous' ->> 'sets')::integer <> 0
+    or (previous -> 'previous' ->> 'days')::integer <> 0 then
+    raise exception 'El resumen anterior del perfil incluye series de la ventana actual';
+  end if;
   if (previous -> 'best_marks' -> 0 ->> 'weight')::numeric <> 60
     or (previous -> 'best_marks' -> 0 ->> 'reps')::integer <> 10 then
     raise exception 'La marca combina datos de series diferentes';

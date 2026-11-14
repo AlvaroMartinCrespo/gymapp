@@ -19,11 +19,32 @@
   --muted-foreground: #a1a1aa;
   --accent: #27272a;
   --accent-foreground: #ffffff;
-  --destructive: #991b1b;
+  --destructive: #be123c;
+  --destructive-foreground: #ffffff;
+  /* Colores semánticos: distintos del rojo de marca (--primary) */
+  --success: #22c55e;
+  --success-foreground: #052e16;
+  --warning: #f59e0b;
+  --warning-foreground: #451a03;
+  --error: #fb7185;
+  --error-foreground: #4c0519;
+  --info: #38bdf8;
+  --info-foreground: #082f49;
+  /* Podio de Rankings */
+  --gold: #f59e0b;
+  --silver: #cbd5e1;
+  --bronze: #d08a4e;
   --border: #27272a;
   --input: #27272a;
   --ring: #ef4444;
   --radius: 1rem;
+  /* Elevación: 0 = fondo de página, 1 = tarjeta, 2 = tarjeta elevada (menús, diálogos, avisos) */
+  --surface-1: #18181b;
+  --surface-2: #1f1f23;
+  --surface-sheen: rgb(255 255 255 / 0.035);
+  --shadow-raised: 0 10px 28px -14px rgb(0 0 0 / 0.75), 0 2px 6px -2px rgb(0 0 0 / 0.5);
+  /* Trazo de los iconos de lucide (tamaños: size-4 = 16, size-5 = 20, size-6 = 24) */
+  --icon-stroke: 2;
   color-scheme: dark;
 }
 
@@ -43,6 +64,18 @@
   --color-accent: var(--accent);
   --color-accent-foreground: var(--accent-foreground);
   --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-success: var(--success);
+  --color-success-foreground: var(--success-foreground);
+  --color-warning: var(--warning);
+  --color-warning-foreground: var(--warning-foreground);
+  --color-error: var(--error);
+  --color-error-foreground: var(--error-foreground);
+  --color-info: var(--info);
+  --color-info-foreground: var(--info-foreground);
+  --color-gold: var(--gold);
+  --color-silver: var(--silver);
+  --color-bronze: var(--bronze);
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
@@ -53,19 +86,81 @@
   --radius-2xl: calc(var(--radius) + 8px);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
+  /* Movimiento: rápido 150 ms (duration-150), base 200 ms (por defecto), lento 300 ms (duration-300) */
+  --ease-standard: cubic-bezier(0.2, 0, 0, 1);
+  --default-transition-duration: 200ms;
+  --default-transition-timing-function: var(--ease-standard);
 }
 
-@layer components {
-  .section-heading {
-    font-size: 1.125rem;
-    line-height: 1.75rem;
-    font-weight: 700;
-  }
+/*
+ * Escala tipográfica: una clase por nivel.
+ *   type-page    título de la pantalla (h1)
+ *   type-section título de sección (h2)
+ *   type-card    título dentro de una tarjeta (h3)
+ *   type-data    dato en una lista o tabla (mono, cifras tabulares)
+ *   type-kpi     cifra destacada; type-kpi-lg para la principal
+ *   type-label   etiqueta o texto de apoyo
+ */
+@utility type-page {
+  font-size: 1.5rem;
+  line-height: 2rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
 
-  .section-divider {
-    border-top: 1px solid var(--border);
-    padding-top: 1.25rem;
-  }
+@utility type-section {
+  font-size: 1.125rem;
+  line-height: 1.75rem;
+  font-weight: 700;
+}
+
+@utility type-card {
+  font-size: 1rem;
+  line-height: 1.5rem;
+  font-weight: 600;
+}
+
+@utility type-data {
+  font-family: var(--font-mono);
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+  font-variant-numeric: tabular-nums;
+}
+
+@utility type-kpi {
+  font-family: var(--font-mono);
+  font-size: 1.5rem;
+  line-height: 2rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+@utility type-kpi-lg {
+  font-family: var(--font-mono);
+  font-size: 1.875rem;
+  line-height: 2.25rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+@utility type-label {
+  font-size: 0.75rem;
+  line-height: 1rem;
+  color: var(--muted-foreground);
+}
+
+/* Elevación: la tarjeta lleva un borde de 1 px y un degradado muy sutil */
+@utility surface-1 {
+  border: 1px solid var(--border);
+  background-color: var(--surface-1);
+  background-image: linear-gradient(180deg, var(--surface-sheen), transparent 55%);
+}
+
+@utility surface-2 {
+  border: 1px solid color-mix(in srgb, var(--border) 60%, white 12%);
+  background-color: var(--surface-2);
+  background-image: linear-gradient(180deg, rgb(255 255 255 / 0.05), transparent 60%);
+  box-shadow: var(--shadow-raised);
 }
 
 @layer base {
@@ -75,8 +170,27 @@
   html {
     -webkit-tap-highlight-color: transparent;
   }
+  .lucide {
+    stroke-width: var(--icon-stroke);
+  }
   body {
     @apply bg-background text-foreground font-sans;
     overscroll-behavior-y: none;
+  }
+}
+
+/* Sin movimiento si la persona lo ha pedido; los indicadores de carga siguen girando */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  ::before,
+  ::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+  .animate-spin {
+    animation-duration: 1s !important;
+    animation-iteration-count: infinite !important;
   }
 }

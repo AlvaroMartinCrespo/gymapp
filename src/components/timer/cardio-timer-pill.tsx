@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { HeartPulse, Pause, Play, X } from "lucide-react";
 
 import { setTrainingTab, useTrainingTab } from "@/components/training/use-training-tab";
+import { useConfirm } from "@/components/ui/confirm-dialog";
 import { elapsedTime, formatTimer } from "@/lib/timer";
 import { useCardioTimer, useTimer } from "./timer-provider";
 
@@ -13,6 +14,7 @@ export function CardioTimerPill() {
   const trainingTab = useTrainingTab();
   const { timer, value, ready, dispatch } = useCardioTimer();
   const rest = useTimer();
+  const confirm = useConfirm();
   // Con la pestaña Cardio abierta el panel ya muestra el cronómetro.
   if (!ready || timer.status === "idle" || (pathname === "/entrenar" && trainingTab === "cardio")) return null;
 
@@ -35,8 +37,9 @@ export function CardioTimerPill() {
     </>
   );
 
-  function discard() {
-    if (window.confirm(`¿Descartar el cronómetro de cardio (${formatTimer(elapsedTime(timer, Date.now()))}) sin guardar?`)) dispatch({ type: "reset" });
+  async function discard() {
+    const accepted = await confirm({ title: `¿Descartar el cronómetro de cardio (${formatTimer(elapsedTime(timer, Date.now()))})?`, description: "Se perderá el tiempo registrado.", confirmLabel: "Descartar", destructive: true });
+    if (accepted) dispatch({ type: "reset" });
   }
 
   return (
