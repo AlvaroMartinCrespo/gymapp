@@ -16,11 +16,11 @@ Marca cada casilla con `[x]` cuando esté hecha.
 
 Mismo criterio: primero lo barato que protege el trabajo hecho, después lo que más se nota en el uso diario. Los números entre paréntesis son `sección.punto` (la posición del punto dentro de su sección).
 
-- [ ] 8. Red de seguridad del proyecto (secciones 11.6, 11.10, 11.11 y 12.1): CI con lint, `tsc --noEmit`, tests y build; cabeceras de seguridad; rate limiting en `/api/push/*`; `.gitignore` con `.DS_Store` y `__MACOSX`; eliminar `PagePlaceholder`. Casi todo son cambios pequeños y hacen que el resto de pasos se pueda validar solo en cada PR.
-- [ ] 9. Menos código repetido (secciones 11.1, 11.2 y 11.3): `lib/format.ts` y `lib/api.ts`, un hook de datos común y dividir los componentes largos. Hace más baratos los pasos 10, 12 y 14.
-- [ ] 10. Estados de carga, vacío y error uniformes (sección 8.3, 8.4 y 8.5): Skeletons, `EmptyState` con acción y errores con "Reintentar" usando los componentes ya creados.
-- [ ] 11. Navegación en móvil (secciones 2.1, 2.3, 2.4, 2.5 y 9.5): menú "Más" para Coach e Historial, botón atrás coherente, título y acción en la cabecera fija, cronómetro como bottom sheet y safe areas en los elementos fijos.
-- [ ] 12. Entrenar, segunda parte (secciones 4.2, 4.5, 4.6, 4.8, 4.9 y 8.7): barra de acción fija, selector de ejercicios con búsqueda, series como tarjetas con swipe, cabecera de sesión, resumen de cardio y actualizaciones optimistas.
+- [x] ~~8. Red de seguridad del proyecto (secciones 11.6, 11.10, 11.11 y 12.1): CI con lint, `tsc --noEmit`, tests y build; cabeceras de seguridad; rate limiting en `/api/push/*`; `.gitignore` con `.DS_Store` y `__MACOSX`; eliminar `PagePlaceholder`.~~ ✅ (CI en `.github/workflows/ci.yml`; CSP y resto de cabeceras en `src/lib/security-headers.mjs`; límite en `src/lib/rate-limit.mjs`. Si la CSP bloquea algo en producción, `CSP_REPORT_ONLY=1` la deja en modo aviso mientras se corrige)
+- [x] ~~9. Menos código repetido (secciones 11.1, 11.2 y 11.3): `lib/format.ts` y `lib/api.ts`, un hook de datos común y dividir los componentes largos.~~ ✅ (`lib/format.ts`, `lib/api.ts`, `lib/use-api.ts` y `lib/use-local-date.ts`; `TrainingPanel` dividido en `ExercisePicker`, `SetForm`, `SetTable` y `DaySummary`)
+- [x] ~~10. Estados de carga, vacío y error uniformes (sección 8.3, 8.4 y 8.5): Skeletons, `EmptyState` con acción y errores con "Reintentar" usando los componentes ya creados.~~ ✅ (`SkeletonGroup` y `SkeletonList` en `ui/skeleton.tsx`, `ErrorState` en `ui/error-state.tsx` y `EmptyState compact`; aplicado en Perfil, Avisos, Historial, Recap, Rankings, Series de hoy y Cardio. Quedan fuera el Coach (punto 15), el visor 3D (punto 17) y los mensajes de los botones en curso)
+- [x] ~~11. Navegación en móvil (secciones 2.1, 2.3, 2.4, 2.5 y 9.5): menú "Más" para Coach e Historial, botón atrás coherente, título y acción en la cabecera fija, cronómetro como bottom sheet y safe areas en los elementos fijos.~~ ✅ (barra inferior con Perfil, Entrenar, Recap, Rankings y "Más" —Cronómetro, Coach IA e Historial—; `ui/sheet.tsx` es la hoja inferior, con asa para arrastrar y área segura; la cabecera fija `layout/app-header.tsx` muestra atrás/logo, título y la acción de cada pantalla, que se declara con `<HeaderAction>`; en móvil la píldora del cronómetro y "Más → Cronómetro" abren `timer/timer-sheet.tsx`, en escritorio sigue la página `/cronometro`)
+- [x] ~~12. Entrenar, segunda parte (secciones 4.2, 4.5, 4.6, 4.8, 4.9 y 8.7): barra de acción fija, selector de ejercicios con búsqueda, series como tarjetas con swipe, cabecera de sesión, resumen de cardio y actualizaciones optimistas.~~ ✅ (barra fija sobre la barra inferior en móvil dentro de `SetForm`; `training/exercise-search.tsx` con búsqueda sin tildes, favoritos y recientes en `localStorage` (`exercise-prefs.ts`); `set-card.tsx` con swipe a la izquierda que pide confirmar el borrado; `session-header.tsx` con duración, series, volumen y Finalizar; resumen y "Más datos" plegable en Cardio; guardar y borrar series son optimistas con rollback. Las actualizaciones optimistas de Cardio y el paso de Entrenar/Cardio/Rankings a `useApi` quedan pendientes)
 - [x] ~~13. Consistencia visual pendiente (secciones 1.2, 1.3, 1.5, 1.7, 1.8, 1.9, 1.10 y 3.4): radios, colores sueltos de Rankings, más `Card`, escala tipográfica, cifras destacadas, iconos, elevación, movimiento y KPIs con tendencia.~~ ✅ (criterios en `docs/diseno.md`; la tendencia del Perfil necesita aplicar la migración `20261114000000_profile_overview_trend.sql`)
 - [ ] 14. Acceso y cuenta (sección 7): marca en la pantalla de acceso, recuperar contraseña, fuerza de contraseña, reenviar confirmación, y eliminar cuenta y exportar datos (RGPD).
 - [ ] 15. Coach IA (sección 6): burbujas, Markdown, barra de entrada fija, streaming, conversación persistente y aviso de privacidad. Los puntos de persistencia y streaming tocan la API.
@@ -46,11 +46,11 @@ Mismo criterio: primero lo barato que protege el trabajo hecho, después lo que 
 
 ## 2. Navegación y estructura
 
-- [ ] **Móvil: Coach e Historial escondidos.** La barra inferior solo tiene 5 de 7 secciones. Menú "Más" o integrar Historial en Recap como pestaña.
+- [x] ~~**Móvil: Coach e Historial escondidos.** La barra inferior solo tiene 5 de 7 secciones. Menú "Más" o integrar Historial en Recap como pestaña.~~ Hecho: menú "Más" (`layout/more-menu.tsx`) con Cronómetro, Coach IA e Historial.
 - [x] ~~**Cabecera duplicada.** Mover `AuthStatus` a un menú de avatar (Perfil, Ajustes, Cerrar sesión).~~ Hecho con Perfil y Cerrar sesión; "Ajustes" no existe todavía como pantalla.
-- [ ] **Cabecera sticky compacta.** Título de página, acción principal y avatar en una barra fija pequeña. Nota: la barra ya es fija (logo en móvil + menú de avatar, respetando el notch); falta el título de página y la acción principal.
-- [ ] **Cronómetro como panel/bottom sheet.** Ya existe la píldora global; liberar un hueco en la barra inferior.
-- [ ] **Botón "atrás" coherente.** Coach lo tiene solo en móvil; Historial y Recap tienen cada uno el suyo.
+- [x] ~~**Cabecera sticky compacta.** Título de página, acción principal y avatar en una barra fija pequeña.~~ Hecho: título en móvil y acción de la pantalla (Coach: nueva conversación; Historial y Recap: actualizar; Recap: acceso a Historial) en `AppHeader`.
+- [x] ~~**Cronómetro como panel/bottom sheet.** Ya existe la píldora global; liberar un hueco en la barra inferior.~~ Hecho en móvil: hoja inferior desde la píldora y desde "Más"; el hueco lo ocupa "Más".
+- [x] ~~**Botón "atrás" coherente.** Coach lo tiene solo en móvil; Historial y Recap tienen cada uno el suyo.~~ Hecho: un único botón en la cabecera (solo móvil, en Coach e Historial). Vuelve con `router.back()` si ya se navegó dentro de la app y, si no (entrada directa), al Perfil.
 - [ ] **Sidebar de escritorio.** Pie con usuario, versión y estado de sincronización; poder colapsarla a solo iconos.
 - [ ] **Aprovechar escritorio.** Dejar `max-w-3xl` y usar dos columnas (Entrenar: formulario + visor 3D; Perfil como dashboard de 2 o 3 columnas).
 - [x] ~~**Páginas 404 y de error.** Añadir `not-found.tsx`, `error.tsx`, `global-error.tsx` y `loading.tsx`.~~ Hecho en `src/app/`. `loading.tsx` es genérico (cabecera, tarjetas); las pantallas con carga propia siguen usando su estado interno hasta el punto de Skeletons.
@@ -68,14 +68,14 @@ Mismo criterio: primero lo barato que protege el trabajo hecho, después lo que 
 ## 4. Pantalla Entrenar
 
 - [x] ~~**Formulario arriba en móvil.** Visor 3D plegable o más pequeño; el formulario de nueva serie antes que conversor y tabla.~~ Hecho: orden Ejercicio → Nueva serie → Series de hoy → Finalizar → visor 3D (plegable, se carga al abrirlo) → conversor → resumen del día.
-- [ ] **Modo gimnasio con una mano.** Barra de acción fija abajo con "Guardar serie" y peso/reps en una tarjeta compacta.
+- [x] ~~**Modo gimnasio con una mano.** Barra de acción fija abajo con "Guardar serie" y peso/reps en una tarjeta compacta.~~ Hecho en móvil: barra fija sobre la barra inferior con "Serie N · peso × reps" y el botón de guardar; en escritorio el botón sigue en el formulario.
 - [x] ~~**Steppers de peso y repeticiones** (±2,5 kg y ±1 rep).~~ Hecho: `training/number-stepper.tsx`; si el campo está vacío parten del valor de la sesión anterior.
 - [x] ~~**Chips de selección rápida.** "Repetir anterior", "+2,5 kg", "Misma serie".~~ Hecho.
-- [ ] **Selector de ejercicios con búsqueda** y recientes/favoritos, en lugar de `<select>` nativos (51 ejercicios).
-- [ ] **Series como lista de tarjetas** con swipe para borrar, en lugar de tabla.
+- [x] ~~**Selector de ejercicios con búsqueda** y recientes/favoritos, en lugar de `<select>` nativos (51 ejercicios).~~ Hecho: hoja con buscador (ignora tildes), favoritos (estrella) y recientes, y el resto agrupado por grupo muscular. Los chips de grupo siguen como atajo.
+- [x] ~~**Series como lista de tarjetas** con swipe para borrar, en lugar de tabla.~~ Hecho: `SetCard`; deslizar más de 80 px abre el diálogo de confirmación y el botón de papelera sigue disponible para teclado y escritorio.
 - [ ] **Distintivo de récord (PR)** visible al guardar una serie, con animación breve. Nota: ninguna función SQL calcula hoy `is_pr` (siempre es `false`), así que antes hace falta una migración que lo calcule.
-- [ ] **Cabecera de sesión.** Duración, series totales y volumen en vivo, y botón "Finalizar" visible.
-- [ ] **Cardio.** Resumen de la sesión en curso en una tarjeta para acortar el contenido.
+- [x] ~~**Cabecera de sesión.** Duración, series totales y volumen en vivo, y botón "Finalizar" visible.~~ Hecho: series y volumen son los de todo el día. La duración cuenta desde la primera serie guardada en este navegador (los datos no guardan hora), así que es "—" si el día se empezó en otro dispositivo.
+- [x] ~~**Cardio.** Resumen de la sesión en curso en una tarjeta para acortar el contenido.~~ Hecho: tarjeta con duración, distancia, ritmo y calorías (estimadas o escritas), y RPE, pulso y calorías plegados en "Más datos".
 
 ## 5. Recap, Historial y Rankings
 
@@ -107,11 +107,11 @@ Mismo criterio: primero lo barato que protege el trabajo hecho, después lo que 
 
 - [x] ~~**Sustituir `window.confirm`** por diálogos propios (eliminar serie, finalizar, descartar cronómetros, borrar cardio).~~ Hecho: `ConfirmProvider` y `useConfirm()` (`ui/confirm-dialog.tsx`, montado en `AppShell`) devuelven una promesa: `if (!(await confirm({ title, destructive: true }))) return;`.
 - [x] ~~**Toasts** para "Serie guardada", "Foto actualizada", etc.~~ Hecho en Entrenar (guardar, eliminar, finalizar), Cardio (guardar, editar, eliminar, aviso de 24 h) y Perfil (foto). Los errores siguen en línea con `Alert`, y los mensajes de Acceso también (se leen antes de iniciar sesión).
-- [ ] **Skeletons** en lugar de "Cargando..." con spinner.
-- [ ] **Estados vacíos** con ilustración y botón de acción ("Registra tu primer entreno").
-- [ ] **Errores con acción** ("Reintentar") de forma uniforme en todas las pantallas.
+- [x] ~~**Skeletons** en lugar de "Cargando..." con spinner.~~ Hecho: `SkeletonGroup` (zona con `role="status"`, `aria-busy` y texto accesible) y `SkeletonList` (filas de altura fija) sustituyen al spinner con texto en Perfil, Avisos, Historial, Recap (también el resumen del entrenador), Rankings, Series de hoy y Cardio. `app/loading.tsx` usa `SkeletonGroup`. Los spinners se mantienen en botones en curso, en los botones de actualizar y en el visor 3D (punto 17); el Coach sigue con "Consultando..." hasta el punto 15.
+- [x] ~~**Estados vacíos** con ilustración y botón de acción ("Registra tu primer entreno").~~ Hecho con `EmptyState` (icono en vez de ilustración; la variante `compact` es para vacíos dentro de una tarjeta con título). Con acción: Perfil (últimos entrenamientos → "Registrar mi primer entreno"), Historial (día sin series → Entrenar), Recap (periodo sin series → Entrenar) y Rankings (sin marcas → Entrenar, o "Activar participación" si está desactivada; página vacía → volver a la primera). Sin acción, porque el formulario está justo encima: Series de hoy, Cardio, Mejores marcas y Avisos.
+- [x] ~~**Errores con acción** ("Reintentar") de forma uniforme en todas las pantallas.~~ Hecho con `ErrorState` (`Alert` + "Reintentar", o "Iniciar sesión" si la API devuelve 401, porque reintentar no serviría). Lo usan Perfil, Avisos, Historial, Recap, Rankings, Series de hoy y Cardio; el resumen del entrenador de Recap reintenta solo esa petición. El Coach ya tenía su propio "Reintentar". Los errores de acciones (guardar, borrar) siguen en línea con `Alert`, porque ahí el reintento ya está en el propio formulario.
 - [ ] **Pull-to-refresh** o actualización automática en lugar de botones "Actualizar".
-- [ ] **Actualizaciones optimistas** al guardar o borrar series, con rollback si falla.
+- [x] ~~**Actualizaciones optimistas** al guardar o borrar series, con rollback si falla.~~ Hecho en Entrenar: la serie aparece (atenuada con spinner hasta confirmarse) y el formulario se vacía al instante; si falla se quita y se restauran peso y repeticiones. Ya no se vuelve a pedir la lista tras cada cambio (no parpadean los skeletons). Cardio sigue sin ser optimista.
 
 ## 9. Accesibilidad y móvil
 
@@ -119,7 +119,7 @@ Mismo criterio: primero lo barato que protege el trabajo hecho, después lo que 
 - [ ] **Contraste.** Comprobar que `#a1a1aa` sobre `#18181b` en `text-xs` llega a 4,5:1.
 - [ ] **Tema claro opcional** o modo "automático" (hoy el dark está forzado).
 - [ ] **Haptics** (`navigator.vibrate`) al guardar o terminar el descanso en Android.
-- [ ] **Safe areas** en la píldora del cronómetro y en los elementos fijos.
+- [x] ~~**Safe areas** en la píldora del cronómetro y en los elementos fijos.~~ Hecho: laterales en contenido, cabecera, barra inferior y píldoras; inferior en la barra de Rankings, los toasts y la hoja.
 
 ## 10. PWA y rendimiento
 
@@ -132,20 +132,20 @@ Mismo criterio: primero lo barato que protege el trabajo hecho, después lo que 
 
 ## 11. Calidad de código y proceso
 
-- [ ] **Código duplicado.** Mover `localDate`, `subscribeDate`, `formatDate`, `dateLabel`, `numberLabel`, `formatNumber` y el fetch a `lib/format.ts` y `lib/api.ts`.
-- [ ] **Dividir componentes largos** (`SetTable`, `SetForm`, `DaySummary`, `StatGrid`).
-- [ ] **Hook de datos común** (`useApi`, SWR o React Query) en vez de repetir view/queryKey/AbortController.
-- [ ] **Eliminar `PagePlaceholder`** si no se usa.
+- [x] ~~**Código duplicado.** Mover `localDate`, `subscribeDate`, `formatDate`, `dateLabel`, `numberLabel`, `formatNumber` y el fetch a `lib/format.ts` y `lib/api.ts`.~~ Hecho. `formatDate(fecha, estilo)` y `formatNumber(valor, opciones)` sustituyen a todas las copias (también `Stat`, Rankings, Cardio y el conversor); `localDate` y `subscribeDate` quedan en `useLocalDate()` (la fecha canónica sigue siendo `localHistoryDate` de `lib/history.ts`); `postJson` (no lanza) y `requestJson` (lanza) sustituyen a `profileRequest`, `workoutRequest` y `cardioRequest`. Quedan fuera de `postJson` los `fetch` del Coach, Acceso, avisos y el cronómetro.
+- [x] ~~**Dividir componentes largos** (`SetTable`, `SetForm`, `DaySummary`, `StatGrid`).~~ Hecho para `SetTable`, `SetForm` y `DaySummary` (más `ExercisePicker`), en `components/training/`. `StatGrid` no existe en el código. `CardioPanel` (~370 líneas) sigue sin dividir y es el candidato para el punto 12.
+- [x] ~~**Hook de datos común** (`useApi`, SWR o React Query) en vez de repetir view/queryKey/AbortController.~~ Hecho con `useApi` propio (`lib/use-api.ts`, sin dependencias nuevas) en Historial, Recap y Perfil. Entrenar, Cardio y Rankings siguen con su propio estado porque modifican los datos cargados (series, lista, participación); pasarán a `useApi` con las actualizaciones optimistas del punto 12.
+- [x] ~~**Eliminar `PagePlaceholder`** si no se usa.~~ Hecho: no lo importaba nadie y se borra `components/layout/page-placeholder.tsx`.
 - [ ] **Centralizar textos** en español.
-- [ ] **CI (GitHub Actions)** con lint, `tsc --noEmit`, `npm test` y build en cada PR.
+- [x] ~~**CI (GitHub Actions)** con lint, `tsc --noEmit`, `npm test` y build en cada PR.~~ Hecho en `.github/workflows/ci.yml` (Node 22, `npm ci`, `npm run lint`, `npm run typecheck`, `npm test`, `npm run build`). El build usa variables de relleno; si algún día se conecta a un servicio al compilar, habrá que añadirlas como secretos del repositorio.
 - [ ] **Tests de interfaz (Playwright)** para acceso, guardar serie y finalizar.
 - [ ] **Observabilidad.** Sentry o similar y analítica respetuosa con la privacidad.
-- [ ] **Rate limiting** en `/api/push/schedule` y `/api/push/cancel`.
-- [ ] **Cabeceras de seguridad** en `next.config.ts` (CSP global, X-Frame-Options, Referrer-Policy, Permissions-Policy).
+- [x] ~~**Rate limiting** en `/api/push/schedule` y `/api/push/cancel`.~~ Hecho: 30 peticiones por minuto e IP en cada ruta (429 con `Retry-After`). Es un contador en memoria, por instancia: frena ráfagas, pero no es un tope global. Para uno global habría que usar un almacén compartido (p. ej. Upstash Redis) con la misma interfaz.
+- [x] ~~**Cabeceras de seguridad** en `next.config.ts` (CSP global, X-Frame-Options, Referrer-Policy, Permissions-Policy).~~ Hecho (más `X-Content-Type-Options` y HSTS), salvo en `/sw.js`, que conserva su CSP propia. La CSP necesita `'unsafe-inline'` en scripts y estilos por cómo Next.js prerenderiza; endurecerla con nonces queda pendiente.
 
 ## 12. Repositorio y documentación
 
-- [ ] **Limpieza del repo.** Añadir `.DS_Store` y `__MACOSX` al `.gitignore` y no subirlos.
+- [x] ~~**Limpieza del repo.** Añadir `.DS_Store` y `__MACOSX` al `.gitignore` y no subirlos.~~ Hecho (también `._*` y `Thumbs.db`); `.DS_Store` ya no estaba en git y se borra del árbol.
 - [ ] **Dividir el README** (36 KB): uno corto y el detalle técnico en `docs/`.
 - [ ] **Mover `plan.md` y `AGENTS.md`** a `docs/` o fuera del repositorio público.
 - [ ] **Actualizar el estado de fases** en el plan.

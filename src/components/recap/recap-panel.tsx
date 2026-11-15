@@ -1,18 +1,24 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useRef, useState, useSyncExternalStore } from "react";
-import { CalendarDays, LoaderCircle, LogIn, RefreshCw, Sparkles } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { CalendarDays, Dumbbell, RefreshCw, Sparkles } from "lucide-react";
 
-import { Alert } from "@/components/ui/alert";
+import { HeaderAction } from "@/components/layout/header-slot";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { ColumnChart } from "@/components/ui/column-chart";
+import { EmptyState } from "@/components/ui/empty-state";
+import { ErrorState } from "@/components/ui/error-state";
 import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import { Skeleton, SkeletonGroup } from "@/components/ui/skeleton";
 import { Stat } from "@/components/ui/stat";
 import { MuscleViewer3D } from "@/components/anatomy/muscle-viewer-3d";
-import { localHistoryDate } from "@/lib/history";
+import { postJson } from "@/lib/api";
+import { formatDate, formatNumber } from "@/lib/format";
+import { useApi } from "@/lib/use-api";
+import { useLocalDate } from "@/lib/use-local-date";
 
 type Period = "week" | "month" | "year";
 type Summary = { days: number; sets: number; exercises: number; volume: number };
@@ -26,7 +32,6 @@ type Recap = {
   categories: { category: string; sets: number; volume: number }[];
   muscles?: { mesh: string; primary_sets: number; secondary_sets: number }[];
 };
-type View = { key: string; data: Recap | null; error: string; loginRequired: boolean };
 type AiSummary = { key: string; text: string | null; error: string };
 
 const periods = [{ value: "week", label: "Semana" }, { value: "month", label: "Mes" }, { value: "year", label: "Año" }] as const;
@@ -35,27 +40,12 @@ const metrics: { field: keyof Summary; label: string }[] = [
   { field: "volume", label: "Volumen (kg · rep)" }, { field: "exercises", label: "Ejercicios distintos" },
 ];
 
-function subscribeDate(callback: () => void) {
-  const interval = window.setInterval(callback, 60000);
-  window.addEventListener("focus", callback);
-  return () => { window.clearInterval(interval); window.removeEventListener("focus", callback); };
-}
-
-function dateLabel(date: string, monthOnly = false) {
-  return new Date(`${date}T12:00:00`).toLocaleDateString("es-ES", monthOnly ? { month: "short" } : { day: "numeric", month: "short", year: "numeric" });
-}
-
 function bucketLabels(date: string, period: Period) {
-  const day = new Date(`${date}T12:00:00`);
-  if (period === "year") return { label: day.toLocaleDateString("es-ES", { month: "short" }), title: day.toLocaleDateString("es-ES", { month: "long", year: "numeric" }) };
+  if (period === "year") return { label: formatDate(date, "month"), title: formatDate(date, "monthYear") };
   return {
-    label: period === "week" ? day.toLocaleDateString("es-ES", { weekday: "short" }) : String(day.getDate()),
-    title: day.toLocaleDateString("es-ES", { weekday: "short", day: "numeric", month: "short" }),
+    label: period === "week" ? formatDate(date, "weekday") : String(Number(date.slice(8))),
+    title: formatDate(date, "weekdayDay"),
   };
-}
-
-function numberLabel(value: number, signed = false) {
-  return value.toLocaleString("es-ES", { maximumFractionDigits: 2, signDisplay: signed ? "exceptZero" : "auto" });
 }
 
 function Bar({ value, maximum, label }: { value: number; maximum: number; label: string }) {
@@ -63,40 +53,25 @@ function Bar({ value, maximum, label }: { value: number; maximum: number; label:
 }
 
 export function RecapPanel() {
-  const today = useSyncExternalStore(subscribeDate, localHistoryDate, () => "");
+  const today = useLocalDate();
   const [selected, setSelected] = useState("");
   const [period, setPeriod] = useState<Period>("week");
   const [reload, setReload] = useState(0);
-  const [view, setView] = useState<View>({ key: "", data: null, error: "", loginRequired: false });
+  // Reintento del resumen del entrenador sin recargar el resto del recap.
+  const [aiAttempt, setAiAttempt] = useState(0);
   const [ai, setAi] = useState<AiSummary>({ key: "", text: null, error: "" });
   const aiCache = useRef(new Map<string, string | null>());
   const date = selected || today;
   const queryKey = `${date}:${period}:${reload}`;
-  const loading = !date || view.key !== queryKey;
-  const data = loading ? null : view.data;
+  const { data, loading, error, loginRequired } = useApi<Recap>({
+    url: "/api/profile",
+    body: date ? { action: "recap", date, period } : null,
+    queryKey,
+    errors: { http: "No se ha podido cargar el recap.", network: "No se ha podido conectar con el recap." },
+  });
   const maxSets = Math.max(1, ...(data?.categories.map((category) => category.sets) ?? []));
-  const aiLoading = !date || ai.key !== queryKey;
-
-  useEffect(() => {
-    if (!date) return;
-    const controller = new AbortController();
-    async function load() {
-      try {
-        const response = await fetch("/api/profile", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ action: "recap", date, period }),
-          signal: controller.signal,
-        });
-        const result = await response.json();
-        if (!controller.signal.aborted) setView({ key: queryKey, data: response.ok ? result : null, error: response.ok ? "" : result.error ?? "No se ha podido cargar el recap.", loginRequired: response.status === 401 });
-      } catch {
-        if (!controller.signal.aborted) setView({ key: queryKey, data: null, error: "No se ha podido conectar con el recap.", loginRequired: false });
-      }
-    }
-    void load();
-    return () => controller.abort();
-  }, [date, period, queryKey]);
+  const aiKey = `${queryKey}:${aiAttempt}`;
+  const aiLoading = !date || ai.key !== aiKey;
 
   useEffect(() => {
     if (!date) return;
@@ -104,40 +79,32 @@ export function RecapPanel() {
     async function loadSummary() {
       const cached = aiCache.current.get(queryKey);
       if (cached !== undefined) {
-        setAi({ key: queryKey, text: cached, error: "" });
+        setAi({ key: aiKey, text: cached, error: "" });
         return;
       }
-      try {
-        const response = await fetch("/api/recap-summary", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ date, period }),
-          signal: controller.signal,
-        });
-        const result = await response.json();
-        if (controller.signal.aborted) return;
-        if (response.ok) {
-          const text = typeof result.summary === "string" ? result.summary : null;
-          aiCache.current.set(queryKey, text);
-          setAi({ key: queryKey, text, error: "" });
-        } else {
-          setAi({ key: queryKey, text: null, error: result.error ?? "No se ha podido generar el resumen." });
-        }
-      } catch {
-        if (!controller.signal.aborted) setAi({ key: queryKey, text: null, error: "No se ha podido generar el resumen." });
+      const result = await postJson<{ summary?: unknown }>("/api/recap-summary", { date, period }, { signal: controller.signal });
+      if (controller.signal.aborted) return;
+      if (result.ok) {
+        const text = typeof result.data.summary === "string" ? result.data.summary : null;
+        aiCache.current.set(queryKey, text);
+        setAi({ key: aiKey, text, error: "" });
+      } else {
+        setAi({ key: aiKey, text: null, error: (!result.unreachable && result.error) || "No se ha podido generar el resumen." });
       }
     }
     void loadSummary();
     return () => controller.abort();
-  }, [date, period, queryKey]);
+  }, [date, period, queryKey, aiKey]);
 
   return (
     <section aria-labelledby="recap-heading" className="min-w-0 space-y-6">
-      <header className="flex items-center gap-3">
-        <h1 id="recap-heading" className="type-page flex-1">Recap</h1>
+      <header className="max-md:sr-only">
+        <h1 id="recap-heading" className="type-page">Recap</h1>
+      </header>
+      <HeaderAction>
         <Link href="/historial" title="Historial" aria-label="Historial" className="flex size-11 shrink-0 items-center justify-center rounded-xl border border-border outline-none hover:bg-card focus-visible:ring-2 focus-visible:ring-ring"><CalendarDays className="size-4" /></Link>
         <Button type="button" size="icon" variant="outline" disabled={loading} title="Actualizar recap" aria-label="Actualizar recap" onClick={() => setReload((current) => current + 1)}><RefreshCw className={`size-4 ${loading ? "animate-spin" : ""}`} /></Button>
-      </header>
+      </HeaderAction>
 
       <Card className="gap-4 p-4">
       <fieldset className="grid grid-cols-3 gap-1">
@@ -151,20 +118,20 @@ export function RecapPanel() {
       </div>
       </Card>
 
-      {loading ? <p role="status" className="flex min-h-40 items-center gap-2 text-sm text-muted-foreground"><LoaderCircle className="size-4 animate-spin" />Cargando recap...</p>
-        : !data ? <div className="space-y-4"><Alert variant="error">{view.error}</Alert>{view.loginRequired && <Button asChild><Link href="/acceso"><LogIn className="size-4" />Iniciar sesión</Link></Button>}</div>
+      {loading ? <SkeletonGroup label="Cargando recap..." className="space-y-6"><Skeleton className="h-10 w-64" /><Skeleton className="h-40 w-full rounded-2xl" /><Skeleton className="h-56 w-full rounded-2xl" /></SkeletonGroup>
+        : !data ? <ErrorState loginRequired={loginRequired} onRetry={() => setReload((current) => current + 1)}>{error}</ErrorState>
         : <>
           <div className="space-y-1 text-xs leading-relaxed text-muted-foreground">
-            <p className="text-sm font-medium text-foreground">{dateLabel(data.range.current_start)} a {dateLabel(data.range.current_end)}</p>
-            <p>Frente a {dateLabel(data.range.previous_start)} a {dateLabel(data.range.previous_end)}</p>
+            <p className="text-sm font-medium text-foreground">{formatDate(data.range.current_start)} a {formatDate(data.range.current_end)}</p>
+            <p>Frente a {formatDate(data.range.previous_start)} a {formatDate(data.range.previous_end)}</p>
           </div>
 
           {data.current.sets > 0 && (aiLoading || ai.text || ai.error) && (
             <section aria-labelledby="recap-ai-heading" aria-live="polite" className="surface-1 space-y-2 rounded-2xl p-5">
               <h2 id="recap-ai-heading" className="type-section flex items-center gap-2"><Sparkles className="size-5 text-primary" />Resumen del entrenador</h2>
-              {aiLoading ? <p role="status" className="flex items-center gap-2 text-sm text-muted-foreground"><LoaderCircle className="size-4 animate-spin" />Analizando tu {period === "week" ? "semana" : period === "month" ? "mes" : "año"}...</p>
+              {aiLoading ? <SkeletonGroup label={`Analizando tu ${period === "week" ? "semana" : period === "month" ? "mes" : "año"}...`} className="space-y-2"><Skeleton className="h-4 w-full" /><Skeleton className="h-4 w-11/12" /><Skeleton className="h-4 w-2/3" /></SkeletonGroup>
                 : ai.text ? <p className="text-sm leading-relaxed">{ai.text}</p>
-                : <p className="text-sm text-muted-foreground">{ai.error}</p>}
+                : <ErrorState onRetry={() => setAiAttempt((current) => current + 1)}>{ai.error}</ErrorState>}
             </section>
           )}
 
@@ -174,22 +141,22 @@ export function RecapPanel() {
                 <Stat
                   key={field}
                   label={label}
-                  value={numberLabel(data.current[field])}
+                  value={formatNumber(data.current[field])}
                   trend={{ current: data.current[field], previous: data.previous[field], against: "el periodo anterior" }}
-                  hint={`Anterior: ${numberLabel(data.previous[field])}`}
+                  hint={`Anterior: ${formatNumber(data.previous[field])}`}
                 />
               ))}
             </dl>
           </Card>
 
-          {data.current.sets === 0 && <p role="status" className="text-sm text-muted-foreground">Sin series registradas en este periodo.</p>}
+          {data.current.sets === 0 && <EmptyState icon={Dumbbell} title="Sin series en este periodo" description="Cambia el periodo o la fecha de corte, o registra un entrenamiento." action={<Button asChild variant="outline"><Link href="/entrenar"><Dumbbell />Ir a Entrenar</Link></Button>} />}
 
           <Card role="region" aria-labelledby="recap-volume-heading" className="min-w-0">
             <header><h2 id="recap-volume-heading" className="type-section">Volumen {period === "year" ? "mensual" : "diario"}</h2><p className="mt-1 text-xs text-muted-foreground">kg · rep</p></header>
             <ColumnChart
               label={`Volumen ${period === "year" ? "mensual" : "diario"}`}
               unit="kg · rep"
-              formatValue={numberLabel}
+              formatValue={formatNumber}
               data={data.buckets.map((bucket) => ({ key: bucket.date, value: bucket.volume, ...bucketLabels(bucket.date, period) }))}
             />
           </Card>
@@ -198,7 +165,7 @@ export function RecapPanel() {
 
           <Card role="region" aria-labelledby="recap-categories-heading" className="min-w-0">
             <h2 id="recap-categories-heading" className="type-section">Series por grupo muscular</h2>
-            <ol className="space-y-3">{data.categories.map((category) => <li key={category.category} className="grid min-h-6 grid-cols-[minmax(0,5rem)_minmax(0,1fr)_minmax(0,6rem)] items-center gap-3"><span className="break-words text-xs text-muted-foreground">{category.category}</span><Bar value={category.sets} maximum={maxSets} label={`Series de ${category.category}`} /><span className="type-data break-all text-right text-xs">{numberLabel(category.sets)}</span></li>)}</ol>
+            <ol className="space-y-3">{data.categories.map((category) => <li key={category.category} className="grid min-h-6 grid-cols-[minmax(0,5rem)_minmax(0,1fr)_minmax(0,6rem)] items-center gap-3"><span className="break-words text-xs text-muted-foreground">{category.category}</span><Bar value={category.sets} maximum={maxSets} label={`Series de ${category.category}`} /><span className="type-data break-all text-right text-xs">{formatNumber(category.sets)}</span></li>)}</ol>
           </Card>
         </>}
     </section>

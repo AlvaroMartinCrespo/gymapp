@@ -2,10 +2,14 @@
 
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
-import { Bot, Check, LoaderCircle, LogIn, RefreshCw, TriangleAlert } from "lucide-react";
+import { Bot, Check, CircleCheck, LoaderCircle, RefreshCw, TriangleAlert } from "lucide-react";
 
 import { Alert } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
+import { EmptyState } from "@/components/ui/empty-state";
+import { ErrorState } from "@/components/ui/error-state";
+import { SkeletonList } from "@/components/ui/skeleton";
+import { formatDate } from "@/lib/format";
 
 type TrainingAlert = { id: string; exercise: string; alert_type: "STAGNATION" | "FATIGUE"; message: string; analysis_week: string | null };
 type View = { key: number; alerts: TrainingAlert[] | null; error: string; loginRequired: boolean };
@@ -59,10 +63,10 @@ export function TrainingAlerts() {
 
   return <section aria-labelledby="training-alerts-heading" className="min-w-0 space-y-4">
     <header className="flex items-center gap-3"><h2 id="training-alerts-heading" className="min-w-0 flex-1 text-base font-semibold">Avisos de entrenamiento</h2><Button type="button" variant="ghost" size="icon" title="Actualizar avisos" aria-label="Actualizar avisos" disabled={loading || Boolean(busy)} onClick={() => { setError(""); setReload((current) => current + 1); }}><RefreshCw className={`size-4 ${loading ? "animate-spin" : ""}`} /></Button></header>
-    {loading ? <p role="status" className="flex items-center gap-2 text-sm text-muted-foreground"><LoaderCircle className="size-4 animate-spin" />Cargando avisos...</p>
-      : view.alerts === null ? <div className="space-y-3"><Alert variant="error">{view.error}</Alert>{view.loginRequired && <Button asChild><Link href="/acceso"><LogIn className="size-4" />Iniciar sesión</Link></Button>}</div>
-      : view.alerts.length === 0 ? <p className="text-sm text-muted-foreground">Sin avisos pendientes.</p>
-      : <ul className="space-y-3">{view.alerts.map((alert) => <li key={alert.id} className="min-w-0 space-y-3 rounded-2xl border border-warning/30 bg-warning/10 p-4"><div className="flex items-start gap-3"><div className="min-w-0 flex-1"><h3 className="flex items-start gap-2 text-sm font-medium"><TriangleAlert aria-hidden="true" className="mt-0.5 size-4 shrink-0 text-warning" /><span className="break-words">{alert.exercise}</span></h3><p className="mt-1 text-xs text-muted-foreground">{alert.alert_type === "STAGNATION" ? "Posible estancamiento" : "Revisar recuperación"}{alert.analysis_week ? ` · Semana del ${new Date(`${alert.analysis_week}T12:00:00`).toLocaleDateString("es-ES")}` : ""}</p></div><Button type="button" variant="outline" size="icon" title="Marcar aviso como leído" aria-label={`Marcar como leído el aviso de ${alert.exercise}`} disabled={Boolean(busy)} onClick={() => void markRead(alert.id)}>{busy === alert.id ? <LoaderCircle className="size-4 animate-spin" /> : <Check className="size-4" />}</Button></div><p className="whitespace-pre-wrap break-words text-sm leading-relaxed">{alert.message}</p><Link href="/coach" className="inline-flex min-h-11 items-center gap-2 text-sm text-primary hover:underline"><Bot className="size-4" />Consultar al Coach</Link></li>)}</ul>}
+    {loading ? <SkeletonList label="Cargando avisos..." count={1} rowClassName="h-24 rounded-2xl" />
+      : view.alerts === null ? <ErrorState loginRequired={view.loginRequired} onRetry={() => { setError(""); setReload((current) => current + 1); }}>{view.error}</ErrorState>
+      : view.alerts.length === 0 ? <EmptyState compact icon={CircleCheck} title="Sin avisos pendientes" description="Aquí aparecerán los avisos de estancamiento o de recuperación." />
+      : <ul className="space-y-3">{view.alerts.map((alert) => <li key={alert.id} className="min-w-0 space-y-3 rounded-2xl border border-warning/30 bg-warning/10 p-4"><div className="flex items-start gap-3"><div className="min-w-0 flex-1"><h3 className="flex items-start gap-2 text-sm font-medium"><TriangleAlert aria-hidden="true" className="mt-0.5 size-4 shrink-0 text-warning" /><span className="break-words">{alert.exercise}</span></h3><p className="mt-1 text-xs text-muted-foreground">{alert.alert_type === "STAGNATION" ? "Posible estancamiento" : "Revisar recuperación"}{alert.analysis_week ? ` · Semana del ${formatDate(alert.analysis_week, "numeric")}` : ""}</p></div><Button type="button" variant="outline" size="icon" title="Marcar aviso como leído" aria-label={`Marcar como leído el aviso de ${alert.exercise}`} disabled={Boolean(busy)} onClick={() => void markRead(alert.id)}>{busy === alert.id ? <LoaderCircle className="size-4 animate-spin" /> : <Check className="size-4" />}</Button></div><p className="whitespace-pre-wrap break-words text-sm leading-relaxed">{alert.message}</p><Link href="/coach" className="inline-flex min-h-11 items-center gap-2 text-sm text-primary hover:underline"><Bot className="size-4" />Consultar al Coach</Link></li>)}</ul>}
     {error && <Alert variant="error">{error}</Alert>}
   </section>;
 }

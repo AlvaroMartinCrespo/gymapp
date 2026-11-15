@@ -6,6 +6,7 @@ import { Check, Pause, Play, RotateCcw, Timer, X } from "lucide-react";
 
 import { formatTimer } from "@/lib/timer";
 import { useTimer } from "./timer-provider";
+import { isMobileViewport, openTimerSheet } from "./timer-sheet-state";
 
 export function TimerPill() {
   const pathname = usePathname();
@@ -20,8 +21,8 @@ export function TimerPill() {
   const iconClass = "flex size-11 shrink-0 items-center justify-center rounded-full outline-none hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring";
 
   return (
-    <div className="fixed left-1/2 top-[calc(0.75rem+env(safe-area-inset-top))] z-50 flex h-14 w-[calc(100%_-_2rem)] max-w-sm -translate-x-1/2 items-center gap-1 rounded-full border border-border bg-card px-2 shadow-lg md:left-[calc(50%_+_8rem)]">
-        <Link href="/cronometro" aria-label={`Abrir cronómetro: ${label}, ${formatted}`} className="flex min-w-0 flex-1 items-center gap-3 rounded-full px-3 outline-none focus-visible:ring-2 focus-visible:ring-ring">
+    <div className="fixed left-1/2 top-[calc(0.75rem+env(safe-area-inset-top))] z-50 flex h-14 w-[calc(100%_-_2rem_-_env(safe-area-inset-left)_-_env(safe-area-inset-right))] max-w-sm -translate-x-1/2 items-center gap-1 rounded-full border border-border bg-card px-2 shadow-lg md:left-[calc(50%_+_8rem)]">
+        <Link href="/cronometro" onClick={(event) => { if (isMobileViewport()) { event.preventDefault(); openTimerSheet(); } }} aria-label={`Abrir cronómetro: ${label}, ${formatted}`} className="flex min-w-0 flex-1 items-center gap-3 rounded-full px-3 outline-none focus-visible:ring-2 focus-visible:ring-ring">
           {finished ? <Check className="size-5 shrink-0 text-primary" /> : <Timer className="size-5 shrink-0 text-primary" />}
           <span className="flex min-w-0 flex-col">
             <span className="truncate text-xs text-muted-foreground">{label}</span>

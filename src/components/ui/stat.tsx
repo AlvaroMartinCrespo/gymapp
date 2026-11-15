@@ -1,11 +1,10 @@
 import * as React from "react";
 import { ArrowDown, ArrowUp, Minus } from "lucide-react";
 
+import { formatNumber } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { recapChange } from "@/lib/recap.mjs";
 
-const numberFormat = (value: number, signed = false) =>
-  value.toLocaleString("es-ES", { maximumFractionDigits: 2, signDisplay: signed ? "exceptZero" : "auto" });
 
 type TrendProps = React.ComponentProps<"span"> & {
   current: number;
@@ -19,7 +18,7 @@ function Trend({ current, previous, against = "el periodo anterior", className, 
   const change = recapChange(current, previous);
   const direction = change.difference > 0 ? "up" : change.difference < 0 ? "down" : "flat";
   const Icon = direction === "up" ? ArrowUp : direction === "down" ? ArrowDown : Minus;
-  const text = `${numberFormat(change.difference, true)}${change.percent === null ? " · Sin base" : ` · ${numberFormat(change.percent, true)} %`}`;
+  const text = `${formatNumber(change.difference, { signed: true })}${change.percent === null ? " · Sin base" : ` · ${formatNumber(change.percent, { signed: true })} %`}`;
   return (
     <span
       data-slot="trend"

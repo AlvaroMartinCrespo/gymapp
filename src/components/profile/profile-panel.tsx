@@ -2,20 +2,27 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useEffect, useState, useSyncExternalStore, type FormEvent } from "react";
-import { BarChart3, Bot, CalendarDays, Dumbbell, LoaderCircle, LogIn, Pencil, RefreshCw, Save, Trash2, Trophy, UserRound } from "lucide-react";
+import { useState, type FormEvent } from "react";
+import { BarChart3, Bot, CalendarDays, Dumbbell, LoaderCircle, Pencil, RefreshCw, Save, Trash2, Trophy, UserRound } from "lucide-react";
 
 import quotes from "@/data/athlete-quotes.json";
 import { Alert } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Dialog } from "@/components/ui/dialog";
+import { EmptyState } from "@/components/ui/empty-state";
+import { ErrorState } from "@/components/ui/error-state";
 import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import { Skeleton, SkeletonGroup } from "@/components/ui/skeleton";
 import { Stat } from "@/components/ui/stat";
 import { useToast } from "@/components/ui/toast";
 import { AvatarLightbox } from "@/components/ui/avatar-lightbox";
 import { TrainingAlerts } from "@/components/profile/training-alerts";
+import { postJson } from "@/lib/api";
+import { formatDate, formatNumber } from "@/lib/format";
+import { useApi } from "@/lib/use-api";
+import { useLocalDate } from "@/lib/use-local-date";
 
 type Profile = { id: string; username: string; avatar_url: string | null; created_at: string };
 type Summary = { days: number; sets: number; exercises: number; volume: number };
@@ -29,97 +36,44 @@ type Overview = {
   recent_days: { date: string; sets: number; volume: number }[];
   best_marks: { exercise_id: string; name: string; category: string; weight: number; reps: number; date: string }[];
 };
-type ViewState = { key: string; data: Overview | null; error: string; loginRequired: boolean };
-
-function localDate() {
-  const date = new Date();
-  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
-}
-
-function subscribeDate(callback: () => void) {
-  const interval = window.setInterval(callback, 60000);
-  window.addEventListener("focus", callback);
-  document.addEventListener("visibilitychange", callback);
-  return () => {
-    window.clearInterval(interval);
-    window.removeEventListener("focus", callback);
-    document.removeEventListener("visibilitychange", callback);
-  };
-}
-
-function formatNumber(value: number, compact = false) {
-  return Number(value).toLocaleString("es-ES", { maximumFractionDigits: compact ? 1 : 2, notation: compact ? "compact" : "standard" });
-}
-
-function formatDate(value: string) {
-  return new Date(`${value}T12:00:00`).toLocaleDateString("es-ES", { day: "numeric", month: "short", year: "numeric" });
-}
-
-async function profileRequest(body: object, signal?: AbortSignal) {
-  const response = await fetch("/api/profile", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body),
-    signal,
-  });
-  return { response, result: await response.json() };
-}
 
 export function ProfilePanel() {
   const { toast } = useToast();
-  const date = useSyncExternalStore(subscribeDate, localDate, () => "");
+  const date = useLocalDate();
   const [reload, setReload] = useState(0);
-  const [view, setView] = useState<ViewState>({ key: "", data: null, error: "", loginRequired: false });
-  const [avatarDraft, setAvatarDraft] = useState("");
+  // null = sin editar: el campo muestra la foto actual del perfil.
+  const [draft, setDraft] = useState<string | null>(null);
   const [failedAvatar, setFailedAvatar] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState("");
   const [editOpen, setEditOpen] = useState(false);
-  const queryKey = `${date}:${reload}`;
-  const loading = !date || view.key !== queryKey;
-  const data = loading ? null : view.data;
+  const { data, loading, error, loginRequired } = useApi<Overview>({
+    url: "/api/profile",
+    body: date ? { action: "load", date } : null,
+    queryKey: `${date}:${reload}`,
+    errors: { http: "No se ha podido cargar el perfil.", network: "No se ha podido conectar con tu perfil." },
+  });
+  const avatarDraft = draft ?? data?.profile.avatar_url ?? "";
   const dayIndex = date ? Math.floor(Date.parse(`${date}T00:00:00Z`) / 86400000) : 0;
   const quote = quotes[dayIndex % quotes.length];
   const trendFor = (field: keyof Summary) => data?.previous ? { current: data.summary[field], previous: data.previous[field], against: "los 28 días anteriores" } : undefined;
   const maxActivity = Math.max(1, ...(data?.activity.map((day) => day.sets) ?? []));
 
-  useEffect(() => {
-    if (!date) return;
-    const controller = new AbortController();
-    async function load() {
-      try {
-        const { response, result } = await profileRequest({ action: "load", date }, controller.signal);
-        if (controller.signal.aborted) return;
-        setView({ key: queryKey, data: response.ok ? result : null, error: response.ok ? "" : result.error ?? "No se ha podido cargar el perfil.", loginRequired: response.status === 401 });
-        if (response.ok) setAvatarDraft(result.profile.avatar_url ?? "");
-      } catch {
-        if (!controller.signal.aborted) setView({ key: queryKey, data: null, error: "No se ha podido conectar con tu perfil.", loginRequired: false });
-      }
-    }
-    void load();
-    return () => controller.abort();
-  }, [date, queryKey]);
-
   async function updateAvatar(value: string | null) {
     if (saving || !data) return;
     setSaving(true);
     setSaveError("");
-    try {
-      const { response, result } = await profileRequest({ action: "avatar", avatarUrl: value });
-      if (!response.ok) {
-        setSaveError(result.error ?? "No se ha podido guardar la foto.");
-        return;
-      }
-      setAvatarDraft(result.profile.avatar_url ?? "");
+    const result = await postJson<{ profile: Profile }>("/api/profile", { action: "avatar", avatarUrl: value });
+    if (!result.ok) {
+      setSaveError(result.unreachable ? "No se ha podido confirmar el cambio. Puedes volver a guardar la misma URL." : result.error ?? "No se ha podido guardar la foto.");
+    } else {
+      setDraft(null);
       setFailedAvatar(null);
       setEditOpen(false);
-      toast(result.profile.avatar_url ? "Foto actualizada." : "Foto eliminada.", { variant: "success" });
+      toast(result.data.profile.avatar_url ? "Foto actualizada." : "Foto eliminada.", { variant: "success" });
       setReload((current) => current + 1);
-    } catch {
-      setSaveError("No se ha podido confirmar el cambio. Puedes volver a guardar la misma URL.");
-    } finally {
-      setSaving(false);
     }
+    setSaving(false);
   }
 
   function submitAvatar(event: FormEvent<HTMLFormElement>) {
@@ -153,7 +107,7 @@ export function ProfilePanel() {
         )}
         <div className="min-w-0 flex-1">
           <h1 id="profile-heading" className="type-page break-words">{data ? `Hola, ${data.profile.username}` : "Perfil"}</h1>
-          {data && <p className="text-sm text-muted-foreground">Miembro desde {new Date(data.profile.created_at).toLocaleDateString("es-ES", { month: "long", year: "numeric" })}</p>}
+          {data && <p className="text-sm text-muted-foreground">Miembro desde {formatDate(data.profile.created_at, "monthYear")}</p>}
           {data?.email && <p className="truncate text-xs text-muted-foreground">{data.email}</p>}
         </div>
         <div className="flex shrink-0 flex-col gap-2 sm:flex-row">
@@ -163,11 +117,14 @@ export function ProfilePanel() {
       </Card>
 
       {loading ? (
-        <p role="status" className="flex min-h-40 items-center gap-2 text-sm text-muted-foreground"><LoaderCircle className="size-4 animate-spin" />Cargando perfil...</p>
+        <SkeletonGroup label="Cargando perfil..." className="space-y-6">
+          <Skeleton className="h-44 w-full rounded-2xl" />
+          <div className="grid grid-cols-3 gap-3">{Array.from({ length: 3 }, (_, index) => <Skeleton key={index} className="h-20 rounded-2xl" />)}</div>
+          <Skeleton className="h-52 w-full rounded-2xl" />
+        </SkeletonGroup>
       ) : !data ? (
         <div className="space-y-4">
-          <Alert variant="error">{view.error}</Alert>
-          {view.loginRequired && <Button asChild><Link href="/acceso"><LogIn className="size-4" />Iniciar sesión</Link></Button>}
+          <ErrorState loginRequired={loginRequired} onRetry={() => setReload((current) => current + 1)}>{error}</ErrorState>
           {quoteCard}
         </div>
       ) : (
@@ -181,7 +138,7 @@ export function ProfilePanel() {
               <Stat label="Días" value={formatNumber(data.summary.days)} trend={trendFor("days")} />
               <Stat label="Series" value={formatNumber(data.summary.sets)} trend={trendFor("sets")} />
               <Stat label="Ejercicios" value={formatNumber(data.summary.exercises)} trend={trendFor("exercises")} />
-              <Stat label="Volumen (kg)" value={formatNumber(data.summary.volume, data.summary.volume >= 100000)} trend={trendFor("volume")} title={formatNumber(data.summary.volume)} />
+              <Stat label="Volumen (kg)" value={formatNumber(data.summary.volume, { compact: data.summary.volume >= 100000 })} trend={trendFor("volume")} title={formatNumber(data.summary.volume)} />
             </dl>
           </Card>
 
@@ -210,7 +167,7 @@ export function ProfilePanel() {
                       <div aria-hidden="true" className="flex h-20 items-end border-b border-border">
                         <div className={`min-h-1 w-full rounded-t-sm ${today ? "bg-primary" : day.sets > 0 ? "bg-primary/50" : "bg-muted"}`} style={{ height: `${day.sets / maxActivity * 100}%` }} />
                       </div>
-                      <span aria-hidden="true" className={`mt-2 block text-xs ${today ? "font-semibold text-foreground" : "text-muted-foreground"}`}>{new Date(`${day.date}T12:00:00`).toLocaleDateString("es-ES", { weekday: "short" })}</span>
+                      <span aria-hidden="true" className={`mt-2 block text-xs ${today ? "font-semibold text-foreground" : "text-muted-foreground"}`}>{formatDate(day.date, "weekday")}</span>
                     </li>
                   );
                 })}
@@ -224,14 +181,14 @@ export function ProfilePanel() {
 
           <Card role="region" aria-labelledby="recent-heading">
             <h2 id="recent-heading" className="type-section flex items-center gap-2"><CalendarDays className="size-5 text-primary" />Últimos entrenamientos</h2>
-            {data.recent_days.length === 0 ? <div className="space-y-4"><p className="text-sm text-muted-foreground">Todavía no hay entrenamientos registrados.</p><Button asChild><Link href="/entrenar"><Dumbbell className="size-4" />Entrenar</Link></Button></div> : (
+            {data.recent_days.length === 0 ? <EmptyState compact icon={CalendarDays} title="Aún no hay entrenamientos" description="Tus últimos días de entrenamiento aparecerán aquí." action={<Button asChild><Link href="/entrenar"><Dumbbell />Registrar mi primer entreno</Link></Button>} /> : (
               <ul className="divide-y divide-border">{data.recent_days.map((day) => <li key={day.date} className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 py-3"><div><p className="text-sm">{formatDate(day.date)}</p><p className="text-xs text-muted-foreground">{day.sets} series</p></div><p className="type-data">{formatNumber(day.volume)} kg</p></li>)}</ul>
             )}
           </Card>
 
           <Card role="region" aria-labelledby="marks-heading">
             <h2 id="marks-heading" className="type-section flex items-center gap-2"><Trophy className="size-5 text-primary" />Mejores marcas por peso</h2>
-            {data.best_marks.length === 0 ? <p className="text-sm text-muted-foreground">Todavía no hay marcas registradas.</p> : (
+            {data.best_marks.length === 0 ? <EmptyState compact icon={Trophy} title="Aún no hay marcas" description="Tu mejor serie de cada ejercicio aparecerá aquí cuando guardes alguna." /> : (
               <ul className="divide-y divide-border">{data.best_marks.map((mark) => <li key={mark.exercise_id} className="flex items-start justify-between gap-4 py-3"><div className="min-w-0 flex-1"><p className="break-words text-sm font-medium">{mark.name}</p><p className="mt-1 text-xs text-muted-foreground">{mark.category} · {formatDate(mark.date)}</p></div><div className="shrink-0 text-right"><p className="type-data">{formatNumber(mark.weight)} kg</p><p className="mt-1 text-xs text-muted-foreground">{mark.reps} reps</p></div></li>)}</ul>
             )}
           </Card>
@@ -255,7 +212,7 @@ export function ProfilePanel() {
       >
         <form id="avatar-form" onSubmit={submitAvatar} className="space-y-3">
           <Field label="URL de la foto (HTTPS)">
-            <Input id="avatar-url" type="url" pattern="https://.*" maxLength={2048} autoComplete="url" spellCheck={false} value={avatarDraft} disabled={saving} onChange={(event) => setAvatarDraft(event.target.value)} />
+            <Input id="avatar-url" type="url" pattern="https://.*" maxLength={2048} autoComplete="url" spellCheck={false} value={avatarDraft} disabled={saving} onChange={(event) => setDraft(event.target.value)} />
           </Field>
           {saveError && <Alert variant="error">{saveError}</Alert>}
           {avatarUrl && failedAvatar === avatarUrl && <p role="status" className="text-sm text-muted-foreground">No se ha podido cargar la foto.</p>}

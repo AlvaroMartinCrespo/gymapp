@@ -6,6 +6,7 @@ import { ArrowRight, Scale } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import { formatNumber } from "@/lib/format";
 
 const KG_PER_LB = 0.45359237;
 
@@ -13,7 +14,7 @@ export function LbConverter() {
   const [pounds, setPounds] = useState("");
   const value = Number(pounds);
   const kilos = pounds.trim() !== "" && Number.isFinite(value) && value >= 0
-    ? (value * KG_PER_LB).toLocaleString("es-ES", { maximumFractionDigits: 2 })
+    ? formatNumber(value * KG_PER_LB)
     : "—";
 
   return (

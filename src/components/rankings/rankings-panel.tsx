@@ -3,20 +3,23 @@
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
-import { ArrowLeft, ArrowRight, LoaderCircle, RefreshCw, Trophy, UserRound } from "lucide-react";
+import { ArrowLeft, ArrowRight, Dumbbell, LoaderCircle, Trophy, UserRound } from "lucide-react";
 import exercises from "@/db/exercises.json";
-import { Alert } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
+import { EmptyState } from "@/components/ui/empty-state";
+import { ErrorState } from "@/components/ui/error-state";
 import { Field } from "@/components/ui/field";
 import { Select } from "@/components/ui/select";
+import { SkeletonList } from "@/components/ui/skeleton";
 import { AvatarLightbox } from "@/components/ui/avatar-lightbox";
+import { postJson } from "@/lib/api";
+import { formatNumber } from "@/lib/format";
 
 type Entry = { username: string; avatar_url: string | null; weight: number; reps: number; position: number; is_me: boolean };
 type Rankings = { enabled: boolean; total: number; entries: Entry[]; personal: { weight: number; reps: number; position: number | null } | null };
 type View = { key: string; data: Rankings | null; error: string; login: boolean };
 const categories = [...new Set(exercises.map((exercise) => exercise.category))];
 const medalColors = { 1: "text-gold", 2: "text-silver", 3: "text-bronze" } as const;
-const format = new Intl.NumberFormat("es-ES", { maximumFractionDigits: 2 });
 
 function Avatar({ url, name }: { url: string | null; name: string }) {
   const [failed, setFailed] = useState(false);
@@ -50,13 +53,11 @@ export function RankingsPanel() {
     const controller = new AbortController();
     operation.current = controller;
     async function load() {
-      try {
-        const response = await fetch("/api/rankings", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "load", exerciseId, metric, page }), signal: controller.signal, cache: "no-store" });
-        const result = await response.json();
-        if (!controller.signal.aborted) setView({ key, data: response.ok ? result : null, error: response.ok ? "" : result.error ?? "No se puede cargar la clasificación.", login: response.status === 401 });
-      } catch {
-        if (!controller.signal.aborted) setView({ key, data: null, error: "No se puede conectar con la clasificación.", login: false });
-      }
+      const result = await postJson<Rankings>("/api/rankings", { action: "load", exerciseId, metric, page }, { signal: controller.signal, cache: "no-store" });
+      if (controller.signal.aborted) return;
+      setView(result.ok
+        ? { key, data: result.data, error: "", login: false }
+        : { key, data: null, error: result.unreachable ? "No se puede conectar con la clasificación." : result.error ?? "No se puede cargar la clasificación.", login: result.status === 401 });
     }
     void load();
     return () => controller.abort();
@@ -70,25 +71,20 @@ export function RankingsPanel() {
     operation.current?.abort();
     operation.current = controller;
     setBusy(true);
-    try {
-      const response = await fetch("/api/rankings", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "participation", exerciseId, metric, page, enabled }), signal: controller.signal });
-      const result = await response.json();
-      if (!controller.signal.aborted) {
-        if (response.ok) {
-          setPage(0);
-          setReload((value) => value + 1);
-        } else setView({ key, data: null, error: result.error ?? "No se puede confirmar la participación. Reintenta la consulta.", login: response.status === 401 });
-      }
-    } catch {
-      if (!controller.signal.aborted) setView({ key, data: null, error: "No se puede confirmar la participación. Reintenta la consulta.", login: false });
-    } finally {
-      if (!controller.signal.aborted) setBusy(false);
+    const failure = "No se puede confirmar la participación. Reintenta la consulta.";
+    const result = await postJson("/api/rankings", { action: "participation", exerciseId, metric, page, enabled }, { signal: controller.signal });
+    if (!controller.signal.aborted) {
+      if (result.ok) {
+        setPage(0);
+        setReload((value) => value + 1);
+      } else setView({ key, data: null, error: (!result.unreachable && result.error) || failure, login: !result.unreachable && result.status === 401 });
+      setBusy(false);
     }
   }
 
   return (
     <div className="mx-auto w-full max-w-4xl space-y-6 pb-6">
-      <header className="flex items-center gap-3">
+      <header className="flex items-center gap-3 max-md:sr-only">
         <Trophy className="size-6 text-primary" aria-hidden="true" />
         <h1 className="type-page">Rankings</h1>
       </header>
@@ -108,8 +104,8 @@ export function RankingsPanel() {
         {[{ id: "weight", label: "Peso máximo" }, { id: "reps", label: "Repeticiones" }].map((mode) => <Button key={mode.id} disabled={busy} variant={metric === mode.id ? "default" : "outline"} aria-pressed={metric === mode.id} onClick={() => { setMetric(mode.id); setPage(0); }}>{mode.label}</Button>)}
       </div>
 
-      {!current && <p className="flex items-center gap-2 text-sm text-muted-foreground" role="status"><LoaderCircle className="size-4 animate-spin" />Cargando clasificación...</p>}
-      {current?.error && <div className="space-y-3"><Alert variant="error">{current.error}</Alert>{current.login ? <Button asChild><Link href="/acceso">Iniciar sesión</Link></Button> : <Button variant="outline" onClick={() => setReload((value) => value + 1)}><RefreshCw className="size-4" />Reintentar</Button>}</div>}
+      {!current && <SkeletonList label="Cargando clasificación..." count={5} rowClassName="h-[4.5rem] rounded-2xl" />}
+      {current?.error && <ErrorState loginRequired={current.login} onRetry={() => setReload((value) => value + 1)}>{current.error}</ErrorState>}
 
       {data && <>
         <label className="surface-1 flex items-start gap-3 rounded-2xl p-4 text-sm">
@@ -118,15 +114,17 @@ export function RankingsPanel() {
           {busy && <LoaderCircle className="size-4 shrink-0 animate-spin" aria-label="Guardando participación" />}
         </label>
         <section aria-label={`Clasificación de ${selected.name}`} className="space-y-4">
-          <div className="flex flex-wrap items-baseline justify-between gap-2"><h2 className="type-section">{selected.name}</h2><p className="text-sm text-muted-foreground">{format.format(data.total)} participantes · Sesiones finalizadas</p></div>
-          {data.entries.length === 0 ? <p className="py-8 text-center text-muted-foreground">{data.total === 0 ? "Aún no hay marcas publicadas." : "No hay resultados en esta página."}</p> : <ol className="surface-1 divide-y divide-border overflow-hidden rounded-2xl">
+          <div className="flex flex-wrap items-baseline justify-between gap-2"><h2 className="type-section">{selected.name}</h2><p className="text-sm text-muted-foreground">{formatNumber(data.total)} participantes · Sesiones finalizadas</p></div>
+          {data.entries.length === 0 ? (data.total === 0
+            ? <EmptyState icon={Trophy} title="Aún no hay marcas publicadas" description={data.enabled ? "Finaliza un entrenamiento con este ejercicio para aparecer en la clasificación." : "Activa la participación y finaliza un entrenamiento con este ejercicio para aparecer."} action={data.enabled ? <Button asChild variant="outline"><Link href="/entrenar"><Dumbbell />Ir a Entrenar</Link></Button> : <Button type="button" disabled={busy} onClick={() => void participate(true)}>Activar participación</Button>} />
+            : <EmptyState compact icon={Trophy} title="No hay resultados en esta página" action={<Button type="button" variant="outline" onClick={() => setPage(0)}>Volver a la primera página</Button>} />) : <ol className="surface-1 divide-y divide-border overflow-hidden rounded-2xl">
             {data.entries.map((entry) => <li key={entry.username} className={`grid grid-cols-[2.5rem_minmax(0,1fr)_auto] items-center gap-3 px-4 py-4 ${entry.is_me ? "bg-primary/5" : ""}`}>
               <span className="type-data text-center font-semibold">{entry.position <= 3 ? <span className="inline-flex flex-col items-center"><Trophy aria-hidden="true" className={`size-4 ${medalColors[entry.position as 1 | 2 | 3]}`} />{entry.position}</span> : entry.position}</span>
               <span className="flex min-w-0 items-center gap-3">
                 <Avatar key={entry.avatar_url ?? "none"} url={entry.avatar_url} name={entry.username} />
                 <span className="min-w-0 break-all font-medium">{entry.username}{entry.is_me && <span className="ml-2 text-xs text-muted-foreground">Tú</span>}</span>
               </span>
-              <span className="type-data text-right"><strong className="font-semibold">{metric === "weight" ? `${format.format(entry.weight)} kg` : `${entry.reps} reps`}</strong><br /><span className="text-muted-foreground">{metric === "weight" ? `${entry.reps} reps` : `${format.format(entry.weight)} kg`}</span></span>
+              <span className="type-data text-right"><strong className="font-semibold">{metric === "weight" ? `${formatNumber(entry.weight)} kg` : `${entry.reps} reps`}</strong><br /><span className="text-muted-foreground">{metric === "weight" ? `${entry.reps} reps` : `${formatNumber(entry.weight)} kg`}</span></span>
             </li>)}
           </ol>}
           <nav className="flex items-center justify-between gap-3" aria-label="Páginas de clasificación">
@@ -135,9 +133,9 @@ export function RankingsPanel() {
             <Button size="icon" variant="outline" title="Página siguiente" aria-label="Página siguiente" disabled={busy || (page + 1) * 50 >= data.total} onClick={() => setPage((value) => value + 1)}><ArrowRight className="size-4" /></Button>
           </nav>
         </section>
-        <aside className="surface-2 sticky bottom-20 z-10 flex flex-wrap items-center justify-between gap-2 rounded-2xl p-4 md:bottom-4" aria-label="Tu marca personal">
+        <aside className="surface-2 sticky bottom-[calc(5rem+env(safe-area-inset-bottom))] z-10 flex flex-wrap items-center justify-between gap-2 rounded-2xl p-4 md:bottom-4" aria-label="Tu marca personal">
           <div><p className="type-card">Tu mejor serie</p><p className="text-sm text-muted-foreground">{data.enabled ? data.personal?.position ? `Posición ${data.personal.position}` : "Sin posición" : "Participación privada"}</p></div>
-          <p className="type-data">{data.personal ? `${format.format(data.personal.weight)} kg · ${data.personal.reps} reps` : "Sin sesiones finalizadas"}</p>
+          <p className="type-data">{data.personal ? `${formatNumber(data.personal.weight)} kg · ${data.personal.reps} reps` : "Sin sesiones finalizadas"}</p>
         </aside>
       </>}
     </div>

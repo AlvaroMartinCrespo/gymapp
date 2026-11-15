@@ -1,5 +1,6 @@
 import { cleanLabel, cleanSubscription, validSeconds, validSubscription } from "./validate.mjs";
 import { validMessageId } from "./qstash.mjs";
+import { clientKey } from "../rate-limit.mjs";
 
 import { buildNotificationPayload, DELIVER_BODY, DELIVER_TITLE, DELIVER_URL } from "./notification.mjs";
 
@@ -73,12 +74,21 @@ const MAX_CANCEL_BODY_BYTES = 1024;
 /**
  * Comprobaciones comunes de las rutas públicas que llama la app (schedule y cancel): método, mismo origen,
  * JSON y tamaño. Devuelve `{ body }` con el JSON leído o `{ response }` con el error que hay que devolver.
- * No hay login, así que el origen solo frena a otras webs en navegadores; los límites del cuerpo y las
- * validaciones de cada ruta son las que acotan el abuso.
+ * No hay login, así que el origen solo frena a otras webs en navegadores; los límites del cuerpo, las
+ * validaciones de cada ruta y el `rateLimit` (por IP, opcional) son lo que acota el abuso. El límite se
+ * aplica después de comprobar el origen, para que una web ajena no gaste el cupo de un usuario legítimo.
  */
-async function readAppRequest(request, maxBytes, error) {
+async function readAppRequest(request, maxBytes, error, rateLimit) {
   if (request.method !== "POST") return { response: error("Método no permitido.", 405) };
   if (request.headers.get("origin") !== new URL(request.url).origin) return { response: error("Origen no permitido.", 403) };
+  if (rateLimit) {
+    const { allowed, retryAfterSeconds } = rateLimit(clientKey(request));
+    if (!allowed) {
+      const response = error("Demasiadas peticiones. Inténtalo de nuevo en unos segundos.", 429);
+      response.headers.set("Retry-After", String(retryAfterSeconds));
+      return { response };
+    }
+  }
   if (!request.headers.get("content-type")?.startsWith("application/json")) return { response: error("Se requiere JSON.", 415) };
   const declared = Number(request.headers.get("content-length") ?? 0);
   if (declared > maxBytes) return { response: error("Petición demasiado grande.", 413) };
@@ -102,14 +112,14 @@ const isConfigError = (failure) => failure instanceof Error && failure.name === 
 
 /**
  * POST /api/push/schedule: `{ subscription, seconds, label? }` → `{ messageId }`.
- * `publish({ delaySeconds, body })` se inyecta (ver qstash.mjs). El cuerpo que viaja a QStash se reconstruye
+ * `publish({ delaySeconds, body })` y `rateLimit(clave)` (opcional, ver lib/rate-limit.mjs) se inyectan. El cuerpo que viaja a QStash se reconstruye
  * solo con los campos validados, y /api/push/deliver lo vuelve a validar al recibirlo.
  */
-export function createScheduleHandler({ publish }) {
+export function createScheduleHandler({ publish, rateLimit }) {
   return async function handleSchedule(request) {
     const headers = { "Cache-Control": "private, no-store" };
     const error = (message, status) => Response.json({ error: message }, { status, headers });
-    const { body, response } = await readAppRequest(request, MAX_SCHEDULE_BODY_BYTES, error);
+    const { body, response } = await readAppRequest(request, MAX_SCHEDULE_BODY_BYTES, error, rateLimit);
     if (response) return response;
 
     if (!validSubscription(body.subscription)) return error("Suscripción de avisos inválida.", 400);
@@ -134,11 +144,11 @@ export function createScheduleHandler({ publish }) {
  * POST /api/push/cancel: `{ messageId }` → `{ ok: true }`. Si QStash ya no tiene el mensaje (ya se
  * entregó o ya estaba cancelado) también responde 200: para quien llama el resultado es el mismo.
  */
-export function createCancelHandler({ cancel }) {
+export function createCancelHandler({ cancel, rateLimit }) {
   return async function handleCancel(request) {
     const headers = { "Cache-Control": "private, no-store" };
     const error = (message, status) => Response.json({ error: message }, { status, headers });
-    const { body, response } = await readAppRequest(request, MAX_CANCEL_BODY_BYTES, error);
+    const { body, response } = await readAppRequest(request, MAX_CANCEL_BODY_BYTES, error, rateLimit);
     if (response) return response;
 
     if (!validMessageId(body.messageId)) return error("Petición inválida.", 400);

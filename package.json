@@ -10,6 +10,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
+    "typecheck": "tsc --noEmit",
     "test": "node --test scripts/*.test.mjs",
     "db:seed": "node scripts/seed.mjs --write",
     "db:seed:sql": "node scripts/seed.mjs --sql",

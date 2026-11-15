@@ -1,10 +1,9 @@
-import { Skeleton } from "@/components/ui/skeleton";
+import { Skeleton, SkeletonGroup } from "@/components/ui/skeleton";
 
-/** Se muestra mientras cargan las rutas. Los Skeleton son decorativos: el aviso accesible es el texto oculto. */
+/** Se muestra mientras cargan las rutas. Los Skeleton son decorativos: el aviso accesible lo da `SkeletonGroup`. */
 export default function Loading() {
   return (
-    <div role="status" aria-busy="true" className="space-y-6">
-      <span className="sr-only">Cargando...</span>
+    <SkeletonGroup label="Cargando..." className="space-y-6">
       <Skeleton className="h-8 w-40" />
       <Skeleton className="h-28 w-full rounded-2xl" />
       <div className="grid grid-cols-2 gap-3">
@@ -12,6 +11,6 @@ export default function Loading() {
         <Skeleton className="h-20 rounded-2xl" />
       </div>
       <Skeleton className="h-40 w-full rounded-2xl" />
-    </div>
+    </SkeletonGroup>
   );
 }

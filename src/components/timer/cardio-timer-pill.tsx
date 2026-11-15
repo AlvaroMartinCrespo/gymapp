@@ -43,7 +43,7 @@ export function CardioTimerPill() {
   }
 
   return (
-    <div className={`fixed left-1/2 z-40 flex h-14 w-[calc(100%_-_2rem)] max-w-sm -translate-x-1/2 items-center gap-1 rounded-full border border-border bg-card px-2 shadow-lg md:left-[calc(50%_+_8rem)] ${restVisible ? "top-[calc(4.5rem+env(safe-area-inset-top))]" : "top-[calc(0.75rem+env(safe-area-inset-top))]"}`}>
+    <div className={`fixed left-1/2 z-40 flex h-14 w-[calc(100%_-_2rem_-_env(safe-area-inset-left)_-_env(safe-area-inset-right))] max-w-sm -translate-x-1/2 items-center gap-1 rounded-full border border-border bg-card px-2 shadow-lg md:left-[calc(50%_+_8rem)] ${restVisible ? "top-[calc(4.5rem+env(safe-area-inset-top))]" : "top-[calc(0.75rem+env(safe-area-inset-top))]"}`}>
       {pathname === "/entrenar"
         ? <button type="button" aria-label={`Abrir cardio: ${label}, ${formatted}`} onClick={() => setTrainingTab("cardio")} className={mainClass}>{content}</button>
         : <Link href="/entrenar#cardio" aria-label={`Abrir cardio: ${label}, ${formatted}`} className={mainClass}>{content}</Link>}

@@ -2,19 +2,25 @@
 
 import Link from "next/link";
 import { useEffect, useRef, useState, type FormEvent } from "react";
-import { Check, HeartPulse, LoaderCircle, LogIn, Pause, Pencil, Play, Plus, RefreshCw, Square, Timer, Trash2, X } from "lucide-react";
+import { Check, ChevronDown, HeartPulse, LoaderCircle, LogIn, Pause, Pencil, Play, Plus, RefreshCw, Square, Timer, Trash2, X } from "lucide-react";
 
 import { useCardioTimer } from "@/components/timer/timer-provider";
-import { useLocalDate } from "@/components/training/use-local-date";
 import { Alert } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { useConfirm } from "@/components/ui/confirm-dialog";
 import { Card } from "@/components/ui/card";
+import { EmptyState } from "@/components/ui/empty-state";
+import { ErrorState } from "@/components/ui/error-state";
 import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
+import { SkeletonList } from "@/components/ui/skeleton";
+import { Stat } from "@/components/ui/stat";
 import { useToast } from "@/components/ui/toast";
+import { requestJson } from "@/lib/api";
+import { formatNumber, formatRelativeDate } from "@/lib/format";
 import { elapsedTime, formatTimer } from "@/lib/timer";
+import { useLocalDate } from "@/lib/use-local-date";
 import { CARDIO_ACTIVITY_OPTIONS, DEFAULT_BODY_WEIGHT_KG, cardioActivityLabel, estimateCalories, formatCardioDuration, validCardioFields } from "@/lib/cardio.mjs";
 
 type CardioSession = {
@@ -63,30 +69,16 @@ function parseForm(form: Form): { fields: Fields | null; message: string } {
   return validCardioFields(fields) ? { fields, message: "" } : { fields: null, message: "Revisa los datos del cardio." };
 }
 
-function formatDate(date: string, today: string) {
-  if (date === today) return "Hoy";
-  const showYear = today && date.slice(0, 4) !== today.slice(0, 4);
-  return new Date(`${date}T12:00:00`).toLocaleDateString("es-ES", { day: "numeric", month: "short", ...(showYear ? { year: "numeric" } : {}) });
-}
-
 function sessionDetails(session: CardioSession) {
   const details: string[] = [];
-  if (session.distance_km !== null) details.push(`${Number(session.distance_km).toLocaleString("es-ES", { maximumFractionDigits: 3 })} km`);
-  if (session.calories !== null) details.push(`${session.data_source === "estimated" ? "≈ " : ""}${session.calories.toLocaleString("es-ES")} kcal`);
+  if (session.distance_km !== null) details.push(`${formatNumber(session.distance_km, { decimals: 3 })} km`);
+  if (session.calories !== null) details.push(`${session.data_source === "estimated" ? "≈ " : ""}${formatNumber(session.calories, { decimals: 3 })} kcal`);
   if (session.avg_hr !== null || session.max_hr !== null) details.push(`FC ${[session.avg_hr, session.max_hr].filter((value) => value !== null).join(" / ")}`);
   if (session.rpe !== null) details.push(`RPE ${session.rpe}`);
   return details;
 }
 
-async function cardioRequest(body: object, signal?: AbortSignal) {
-  const response = await fetch("/api/cardio", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body),
-    signal,
-  });
-  return { response, result: await response.json() };
-}
+const cardioRequest = (body: object, signal?: AbortSignal) => requestJson("/api/cardio", body, { signal });
 
 export function CardioPanel() {
   const { toast } = useToast();
@@ -101,6 +93,7 @@ export function CardioPanel() {
   const [error, setError] = useState("");
   const [loginRequired, setLoginRequired] = useState(false);
   const [timerFilled, setTimerFilled] = useState(false);
+  const [moreOpen, setMoreOpen] = useState(false);
   const { timer, value: timerValue, ready: timerReady, persistent: timerPersistent, dispatch: timerDispatch } = useCardioTimer();
   const pending = useRef<Attempt | null>(null);
   const activityField = useRef<HTMLSelectElement>(null);
@@ -120,6 +113,19 @@ export function CardioPanel() {
     durationSeconds: estimateSeconds,
     distanceKm: distanceValue > 0 ? distanceValue : null,
   }) : null;
+
+  // Resumen de la sesión en curso: duración del formulario o, si aún no se ha volcado, la del cronómetro.
+  const summarySeconds = estimateSeconds > 0 ? estimateSeconds : timerActive ? Math.floor(timerValue / 1000) : 0;
+  const summaryDistance = distanceValue > 0 ? distanceValue : null;
+  const typedCalories = form.calories.trim() === "" ? null : Number(form.calories);
+  const summaryEstimate = summarySeconds > 0 && typedCalories === null ? estimateCalories({ activityType: activity, durationSeconds: summarySeconds, distanceKm: summaryDistance }) : null;
+  const summary = summarySeconds > 0 ? {
+    seconds: summarySeconds,
+    distance: summaryDistance,
+    pace: summaryDistance ? `${formatTimer(Math.round(summarySeconds / summaryDistance) * 1000)} /km` : null,
+    calories: typedCalories !== null && Number.isFinite(typedCalories) ? typedCalories : summaryEstimate,
+    estimated: typedCalories === null,
+  } : null;
 
   useEffect(() => {
     const controller = new AbortController();
@@ -187,6 +193,7 @@ export function CardioPanel() {
   function startEdit(session: CardioSession) {
     if (locked || timerActive) return;
     setEditing(session.id);
+    setMoreOpen(true);
     setForm({
       activity: session.activity_type,
       minutes: String(Math.floor(session.duration_seconds / 60)),
@@ -314,23 +321,39 @@ export function CardioPanel() {
             <Field label="Minutos"><Input id="cardio-minutes" type="number" inputMode="numeric" min={0} max={1440} step={1} value={form.minutes} onChange={(event) => change("minutes", event.target.value)} placeholder="0" className="font-mono" /></Field>
             <Field label="Segundos"><Input id="cardio-seconds" type="number" inputMode="numeric" min={0} max={59} step={1} value={form.seconds} onChange={(event) => change("seconds", event.target.value)} placeholder="0" className="font-mono" /></Field>
           </div>
-          <div className="grid grid-cols-2 gap-3">
-            <Field label="Distancia (km)" suffix="opcional"><Input id="cardio-distance" type="number" inputMode="decimal" min={0.001} max={1000} step="0.001" value={form.distance} onChange={(event) => change("distance", event.target.value)} className="font-mono" /></Field>
-            <Field label="Esfuerzo (RPE)" suffix="opcional">
-              <Select id="cardio-rpe" value={form.rpe} onChange={(event) => change("rpe", event.target.value)}>
-                <option value="">—</option>
-                {Array.from({ length: 10 }, (_, index) => index + 1).map((value) => <option key={value} value={value}>{value}</option>)}
-              </Select>
-            </Field>
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <Field label="FC media" suffix="lpm"><Input id="cardio-avg-hr" type="number" inputMode="numeric" min={30} max={250} step={1} value={form.avgHr} onChange={(event) => change("avgHr", event.target.value)} className="font-mono" /></Field>
-            <Field label="FC máxima" suffix="lpm"><Input id="cardio-max-hr" type="number" inputMode="numeric" min={30} max={250} step={1} value={form.maxHr} onChange={(event) => change("maxHr", event.target.value)} className="font-mono" /></Field>
-          </div>
-          <Field label="Calorías (kcal)" suffix="opcional" hint={<>Si lo dejas vacío se estimará con un peso de {DEFAULT_BODY_WEIGHT_KG} kg y se marcará como estimación.</>}>
-            <Input id="cardio-calories" type="number" inputMode="numeric" min={0} max={20000} step={1} value={form.calories} onChange={(event) => change("calories", event.target.value)} placeholder={estimate !== null ? `≈ ${estimate}` : ""} className="font-mono" />
-          </Field>
+          <Field label="Distancia (km)" suffix="opcional"><Input id="cardio-distance" type="number" inputMode="decimal" min={0.001} max={1000} step="0.001" value={form.distance} onChange={(event) => change("distance", event.target.value)} className="font-mono" /></Field>
+          <details open={moreOpen || undefined} onToggle={(event) => setMoreOpen(event.currentTarget.open)} className="group rounded-xl border border-border">
+            <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-2 rounded-xl px-3 text-sm font-medium outline-none focus-visible:ring-2 focus-visible:ring-ring [&::-webkit-details-marker]:hidden">
+              Más datos <span className="font-normal text-muted-foreground">· esfuerzo, pulso y calorías</span>
+              <ChevronDown aria-hidden="true" className="ml-auto size-4 text-muted-foreground transition-transform group-open:rotate-180 motion-reduce:transition-none" />
+            </summary>
+            <div className="space-y-4 px-3 pb-3 pt-1">
+              <Field label="Esfuerzo (RPE)" suffix="opcional">
+                <Select id="cardio-rpe" value={form.rpe} onChange={(event) => change("rpe", event.target.value)}>
+                  <option value="">—</option>
+                  {Array.from({ length: 10 }, (_, index) => index + 1).map((value) => <option key={value} value={value}>{value}</option>)}
+                </Select>
+              </Field>
+              <div className="grid grid-cols-2 gap-3">
+                <Field label="FC media" suffix="lpm"><Input id="cardio-avg-hr" type="number" inputMode="numeric" min={30} max={250} step={1} value={form.avgHr} onChange={(event) => change("avgHr", event.target.value)} className="font-mono" /></Field>
+                <Field label="FC máxima" suffix="lpm"><Input id="cardio-max-hr" type="number" inputMode="numeric" min={30} max={250} step={1} value={form.maxHr} onChange={(event) => change("maxHr", event.target.value)} className="font-mono" /></Field>
+              </div>
+              <Field label="Calorías (kcal)" suffix="opcional" hint={<>Si lo dejas vacío se estimará con un peso de {DEFAULT_BODY_WEIGHT_KG} kg y se marcará como estimación.</>}>
+                <Input id="cardio-calories" type="number" inputMode="numeric" min={0} max={20000} step={1} value={form.calories} onChange={(event) => change("calories", event.target.value)} placeholder={estimate !== null ? `≈ ${estimate}` : ""} className="font-mono" />
+              </Field>
+            </div>
+          </details>
         </fieldset>
+        {summary && (
+          <section aria-label="Resumen de la sesión" className="rounded-xl bg-muted/30 p-3">
+            <dl className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+              <Stat label="Duración" value={formatCardioDuration(summary.seconds)} />
+              {summary.distance !== null && <Stat label="Distancia" value={`${formatNumber(summary.distance, { decimals: 3 })} km`} />}
+              {summary.pace && <Stat label="Ritmo" value={summary.pace} />}
+              {summary.calories !== null && <Stat label="Calorías" value={`${summary.estimated ? "≈ " : ""}${formatNumber(summary.calories)} kcal`} />}
+            </dl>
+          </section>
+        )}
         {error && <Alert variant="error">{error}</Alert>}
         {loginRequired && <Button asChild variant="outline"><Link href="/acceso"><LogIn className="size-4" />Iniciar sesión</Link></Button>}
         <Button type="submit" disabled={Boolean(busy) || !date} className="w-full sm:w-auto">
@@ -347,9 +370,9 @@ export function CardioPanel() {
             <RefreshCw className={`size-4 ${loading ? "animate-spin" : ""}`} />
           </button>
         </div>
-        {loading ? <p role="status" className="flex min-h-16 items-center gap-2 text-sm text-muted-foreground"><LoaderCircle className="size-4 animate-spin" />Cargando cardio...</p>
-          : list.error ? <div className="space-y-4"><Alert variant="error">{list.error}</Alert>{list.loginRequired && <Button asChild variant="outline"><Link href="/acceso"><LogIn className="size-4" />Iniciar sesión</Link></Button>}</div>
-          : sessions.length === 0 ? <p className="py-4 text-sm text-muted-foreground">Todavía no has registrado cardio.</p>
+        {loading ? <SkeletonList label="Cargando cardio..." />
+          : list.error ? <ErrorState loginRequired={list.loginRequired} onRetry={() => setReload((value) => value + 1)}>{list.error}</ErrorState>
+          : sessions.length === 0 ? <EmptyState compact icon={HeartPulse} title="Aún no hay cardio" description="Guarda tu primera sesión con el formulario de arriba o con el cronómetro." />
           : (
             <ul className="divide-y divide-border">
               {sessions.map((session) => {
@@ -358,11 +381,11 @@ export function CardioPanel() {
                   <li key={session.id} className={`flex items-start justify-between gap-3 py-3 ${editing === session.id ? "bg-primary/5" : ""}`}>
                     <div className="min-w-0 space-y-1">
                       <p className="break-words text-sm font-medium">{cardioActivityLabel(session.activity_type)} · {formatCardioDuration(session.duration_seconds)}</p>
-                      <p className="break-words text-xs text-muted-foreground"><span className="capitalize">{formatDate(session.date, date)}</span>{details.length > 0 && ` · ${details.join(" · ")}`}</p>
+                      <p className="break-words text-xs text-muted-foreground"><span className="capitalize">{formatRelativeDate(session.date, date)}</span>{details.length > 0 && ` · ${details.join(" · ")}`}</p>
                     </div>
                     <div className="flex shrink-0">
-                      <button type="button" title={timerActive ? "Termina o descarta el cronómetro para editar" : "Editar sesión"} aria-label={`Editar ${cardioActivityLabel(session.activity_type)} del ${formatDate(session.date, date)}`} disabled={locked || timerActive} onClick={() => startEdit(session)} className={iconButtonClass}><Pencil className="size-4" /></button>
-                      <button type="button" title="Eliminar sesión" aria-label={`Eliminar ${cardioActivityLabel(session.activity_type)} del ${formatDate(session.date, date)}`} disabled={locked} onClick={() => void remove(session)} className={iconButtonClass}>{busy === session.id ? <LoaderCircle className="size-4 animate-spin" /> : <Trash2 className="size-4" />}</button>
+                      <button type="button" title={timerActive ? "Termina o descarta el cronómetro para editar" : "Editar sesión"} aria-label={`Editar ${cardioActivityLabel(session.activity_type)} del ${formatRelativeDate(session.date, date)}`} disabled={locked || timerActive} onClick={() => startEdit(session)} className={iconButtonClass}><Pencil className="size-4" /></button>
+                      <button type="button" title="Eliminar sesión" aria-label={`Eliminar ${cardioActivityLabel(session.activity_type)} del ${formatRelativeDate(session.date, date)}`} disabled={locked} onClick={() => void remove(session)} className={iconButtonClass}>{busy === session.id ? <LoaderCircle className="size-4 animate-spin" /> : <Trash2 className="size-4" />}</button>
                     </div>
                   </li>
                 );

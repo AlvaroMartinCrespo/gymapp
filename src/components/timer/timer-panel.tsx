@@ -13,7 +13,7 @@ import { useTimer } from "./timer-provider";
 
 const presets = [60, 90, 120, 180, 300];
 
-export function TimerPanel() {
+export function TimerPanel({ embedded = false }: { embedded?: boolean } = {}) {
   const { timer, value, elapsed, ready, persistent, dispatch } = useTimer();
   const running = timer.status === "running";
   const active = running || timer.status === "paused";
@@ -36,10 +36,10 @@ export function TimerPanel() {
   }
 
   return (
-    <section className="mx-auto w-full max-w-lg" aria-labelledby="timer-heading">
-      <header className="mb-6">
-        <h1 id="timer-heading" className="type-page">Cronómetro</h1>
-      </header>
+    <section className="mx-auto w-full max-w-lg" aria-labelledby={embedded ? undefined : "timer-heading"} aria-label={embedded ? "Cronómetro" : undefined}>
+      {!embedded && <header className="mb-6">
+        <h1 id="timer-heading" className="type-page max-md:sr-only">Cronómetro</h1>
+      </header>}
       <div role="group" aria-label="Modo de tiempo" className="grid grid-cols-2 border-b border-border">
         <button type="button" aria-pressed={rest} disabled={!ready || active} onClick={() => configureMode("rest")} className={`flex min-h-12 items-center justify-center gap-2 border-b-2 px-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed ${rest ? "border-primary text-foreground" : "border-transparent text-muted-foreground"}`}>
           <Hourglass className="size-4" />Descanso

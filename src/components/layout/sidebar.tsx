@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 import { cn } from "@/lib/utils";
-import { NAV_ITEMS } from "./nav-items";
+import { isActive, NAV_ITEMS } from "./nav-items";
 
 export function Sidebar() {
   const pathname = usePathname();
@@ -18,7 +18,7 @@ export function Sidebar() {
       <nav aria-label="Navegación principal">
         <ul className="flex flex-col gap-1">
           {NAV_ITEMS.map(({ href, label, icon: Icon }) => {
-            const active = href === "/" ? pathname === "/" : pathname.startsWith(href);
+            const active = isActive(pathname, href);
             return (
               <li key={href}>
                 <Link

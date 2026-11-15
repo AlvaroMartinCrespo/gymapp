@@ -2,10 +2,12 @@
 
 import Link from "next/link";
 import { useEffect, useRef, useState, type FormEvent } from "react";
-import { ArrowLeft, BatteryLow, Bot, HeartPulse, LoaderCircle, LogIn, Pencil, Plus, RotateCcw, Send, Square, TrendingUp } from "lucide-react";
+import { BatteryLow, Bot, HeartPulse, LoaderCircle, LogIn, Pencil, Plus, RotateCcw, Send, Square, TrendingUp } from "lucide-react";
 
 import { Alert } from "@/components/ui/alert";
+import { HeaderAction } from "@/components/layout/header-slot";
 import { Button } from "@/components/ui/button";
+import { localHistoryDate } from "@/lib/history";
 
 type Message = { role: "user" | "assistant"; content: string };
 
@@ -14,11 +16,6 @@ const prompts = [
   { label: "Molestias", icon: HeartPulse, message: "Tengo dolor al entrenar. ¿Cuándo debería detener el ejercicio y consultar a un profesional?" },
   { label: "Descarga", icon: BatteryLow, message: "¿Mis últimas cuatro semanas sugieren que convendría reducir temporalmente la carga?" },
 ];
-
-function localDate() {
-  const date = new Date();
-  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
-}
 
 export function CoachPanel() {
   const [messages, setMessages] = useState<Message[]>([]);
@@ -49,7 +46,7 @@ export function CoachPanel() {
       const response = await fetch("/api/ai-coach", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ date: localDate(), messages: recent }),
+        body: JSON.stringify({ date: localHistoryDate(), messages: recent }),
         signal: active.signal,
       });
       const result = await response.json();
@@ -102,13 +99,12 @@ export function CoachPanel() {
 
   return (
     <section aria-labelledby="coach-heading" className="min-w-0 space-y-5">
-      <header className="flex items-center gap-3">
-        <Link href="/" title="Volver al perfil" aria-label="Volver al perfil" className="flex size-11 shrink-0 items-center justify-center rounded-xl border border-border outline-none hover:bg-card focus-visible:ring-2 focus-visible:ring-ring md:hidden"><ArrowLeft className="size-4" /></Link>
-        <div className="min-w-0 flex-1">
-          <h1 id="coach-heading" className="type-page">Coach IA</h1>
-        </div>
-        <Button type="button" size="icon" variant="outline" disabled={sending || messages.length === 0} title="Nueva conversación" aria-label="Nueva conversación" onClick={reset}><Plus className="size-4" /></Button>
+      <header className="max-md:sr-only">
+        <h1 id="coach-heading" className="type-page">Coach IA</h1>
       </header>
+      <HeaderAction>
+        <Button type="button" size="icon" variant="outline" disabled={sending || messages.length === 0} title="Nueva conversación" aria-label="Nueva conversación" onClick={reset}><Plus className="size-4" /></Button>
+      </HeaderAction>
 
       <details className="text-xs leading-relaxed text-muted-foreground">
         <summary className="w-fit cursor-pointer">Privacidad</summary>

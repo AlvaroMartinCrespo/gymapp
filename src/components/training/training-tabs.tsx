@@ -5,7 +5,8 @@ import { Dumbbell, HeartPulse, type LucideIcon } from "lucide-react";
 
 import { CardioPanel } from "@/components/training/cardio-panel";
 import { TrainingPanel } from "@/components/training/training-panel";
-import { useLocalDate } from "@/components/training/use-local-date";
+import { formatDate } from "@/lib/format";
+import { useLocalDate } from "@/lib/use-local-date";
 import { setTrainingTab, useTrainingTab } from "@/components/training/use-training-tab";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
@@ -26,8 +27,8 @@ export function TrainingTabs() {
   return (
     <section aria-labelledby="training-heading" className="space-y-7">
       <header>
-        <h1 id="training-heading" className="type-page">Entrenar</h1>
-        <p className="mt-1 text-sm capitalize text-muted-foreground">{date ? new Date(`${date}T12:00:00`).toLocaleDateString("es-ES", { weekday: "long", day: "numeric", month: "long" }) : "Cargando fecha..."}</p>
+        <h1 id="training-heading" className="type-page max-md:sr-only">Entrenar</h1>
+        <p className="text-sm capitalize md:mt-1 text-muted-foreground">{date ? formatDate(date, "weekdayFull") : "Cargando fecha..."}</p>
       </header>
 
       <Tabs value={active} onValueChange={(next) => setTrainingTab(next as TabId)}>
