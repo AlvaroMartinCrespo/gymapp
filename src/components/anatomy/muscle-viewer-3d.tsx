@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useId, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState, useSyncExternalStore } from "react";
 import { muscleGroups } from "../../../public/anatomy/muscles.mjs";
 
 type Heat = { mesh: string; primary_sets: number; secondary_sets: number };
@@ -12,6 +12,22 @@ type Props = {
   mode?: "exercise" | "heat";
   title?: string;
 };
+
+type NetworkInformation = EventTarget & { saveData?: boolean; effectiveType?: string };
+const networkInformation = () => (navigator as Navigator & { connection?: NetworkInformation }).connection;
+
+// El modelo pesa unos 4 MB: con ahorro de datos o red 2G/3G no se descarga solo, hay que pedirlo.
+// `null` = todavía no se sabe (render en servidor / hidratación): solo se muestra el póster.
+function subscribeNetwork(onChange: () => void) {
+  const info = networkInformation();
+  info?.addEventListener?.("change", onChange);
+  return () => info?.removeEventListener?.("change", onChange);
+}
+const isConstrainedNetwork = (): boolean | null => {
+  const info = networkInformation();
+  return Boolean(info?.saveData) || /^(slow-2g|2g|3g)$/.test(info?.effectiveType ?? "");
+};
+const unknownNetwork = (): boolean | null => null;
 
 const label = (id: string) => muscleGroups[id as keyof typeof muscleGroups] ?? id;
 const controlClass = "min-h-11 rounded-xl border border-border px-3 text-xs outline-none hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-40";
@@ -26,6 +42,11 @@ export function MuscleViewer3D({ primary = [], secondary = [], camera = "front",
   const [selected, setSelected] = useState("");
   const [available, setAvailable] = useState<string[]>([]);
   const [attempt, setAttempt] = useState(0);
+  const constrained = useSyncExternalStore(subscribeNetwork, isConstrainedNetwork, unknownNetwork);
+  const [requested, setRequested] = useState(false);
+  // El iframe (y con él la descarga del GLB) solo se monta con red normal o cuando la persona lo pide.
+  const load = requested || constrained === false;
+  const poster = `/anatomy/poster-${camera === "back" ? "back" : "front"}.webp`;
   const payload = JSON.stringify({ primary, secondary, camera, heat, mode });
   const missing = status === "ready" ? [...primary, ...secondary].filter((group) => !available.includes(group)) : [];
 
@@ -77,8 +98,8 @@ export function MuscleViewer3D({ primary = [], secondary = [], camera = "front",
       <header className="space-y-1">
         <h2 id={headingId} className="type-section">{title}</h2>
       </header>
-      <div className="relative h-[360px] overflow-hidden rounded-xl border border-border sm:h-[440px]" aria-busy={status === "loading"}>
-        {status !== "error" && <iframe
+      <div className="relative h-[360px] overflow-hidden rounded-xl border border-border bg-background sm:h-[440px]" aria-busy={load && status === "loading"}>
+        {status !== "error" && load && <iframe
           key={attempt}
           ref={frame}
           src="/anatomy/viewer.html"
@@ -88,10 +109,26 @@ export function MuscleViewer3D({ primary = [], secondary = [], camera = "front",
           onError={() => { setError("No se pudo abrir el visor 3D."); setStatus("error"); }}
           className="h-full w-full border-0"
         />}
-        {status === "loading" && <p role="status" className="pointer-events-none absolute inset-x-0 top-4 text-center text-xs text-muted-foreground">Cargando modelo anatómico…</p>}
-        {status === "error" && <div className="flex h-full flex-col items-center justify-center gap-4 p-5 text-center">
-          <p role="alert" className="text-sm text-muted-foreground">{error}</p>
-          <button type="button" className={controlClass} onClick={() => { ready.current = false; setStatus("loading"); setSelected(""); setAttempt((value) => value + 1); }}>Reintentar</button>
+        {/* Póster estático (unos KB): cubre la espera, se desvanece cuando el modelo está listo y no intercepta toques.
+            Si el visor falla se queda como imagen de respaldo (atenuada) detrás del aviso, para que no quede un hueco vacío. */}
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={poster}
+          alt=""
+          width={600}
+          height={800}
+          decoding="async"
+          aria-hidden="true"
+          className={`pointer-events-none absolute inset-0 h-full w-full object-contain transition-opacity duration-300 motion-reduce:transition-none ${status === "ready" ? "opacity-0" : status === "error" ? "opacity-40" : "opacity-100"}`}
+        />
+        {status === "loading" && load && <p role="status" className="pointer-events-none absolute inset-x-0 top-4 text-center text-xs text-muted-foreground">Cargando modelo anatómico…</p>}
+        {status === "loading" && !load && constrained === true && <div className="absolute inset-x-0 bottom-0 flex flex-col items-center gap-3 p-5 text-center">
+          <p className="text-xs text-muted-foreground">El modelo 3D pesa unos 4 MB y no se descarga solo con ahorro de datos o conexión lenta.</p>
+          <button type="button" className={controlClass} onClick={() => setRequested(true)}>Cargar modelo 3D</button>
+        </div>}
+        {status === "error" && <div className="absolute inset-x-0 bottom-0 flex flex-col items-center gap-3 bg-gradient-to-t from-background via-background/90 to-transparent p-5 pt-12 text-center">
+          <p role="alert" className="text-sm text-muted-foreground">{error} Mientras tanto, esta es la vista de referencia; abajo siguen los músculos trabajados.</p>
+          <button type="button" className={controlClass} onClick={() => { ready.current = false; setStatus("loading"); setSelected(""); setRequested(true); setAttempt((value) => value + 1); }}>Reintentar</button>
         </div>}
       </div>
       <div className="flex flex-wrap gap-2" role="group" aria-label="Controles del modelo 3D">

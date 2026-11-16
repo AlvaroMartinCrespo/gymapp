@@ -6,6 +6,8 @@
     <meta name="color-scheme" content="dark" />
     <title>Anatomía muscular interactiva</title>
     <link rel="stylesheet" href="./viewer.css" />
+    <!-- Empieza a bajar el modelo en paralelo a los módulos (si no, esperaría a que terminen de cargar). -->
+    <link rel="preload" href="/models/human_muscles.glb" as="fetch" crossorigin />
     <script type="importmap">{"imports":{"three":"/vendor/three/three.module.min.js"}}</script>
   </head>
   <body>

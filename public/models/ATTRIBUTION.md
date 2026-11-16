@@ -13,7 +13,18 @@ The file's embedded `asset` metadata identifies:
   License: https://creativecommons.org/licenses/by-sa/4.0/
 - This combined derivative: **CC BY-SA 4.0**, as declared by its embedded metadata.
 
-GymRat does not modify the supplied GLB. Colors, camera framing and the mapping
+Changes made by GymRat (CC BY-SA 4.0 requires indicating them): the served GLB is an
+optimized derivative of the supplied file, produced with
+`scripts/model/optimize-model.mjs` (glTF-Transform + meshoptimizer). Vertex colors
+(`COLOR_0`) were removed, meshes were simplified to about 61 % of the original
+triangles (each mesh's bounding box moves by at most ~0.15 % of the model height)
+and the data was re-encoded with Meshopt. Node and mesh names, hierarchy and
+license metadata are unchanged; `asset.generator` keeps the original value plus a
+note about the optimization. The original supplied file remains in the repository
+history. The static posters `/anatomy/poster-front.webp` and `poster-back.webp`
+are renders of this derivative and carry the same license.
+
+Colors, camera framing and the mapping
 to exercise groups are applied at runtime. The anatomical model is educational,
 not a validated measurement of muscle activation, fatigue or medical condition.
 

@@ -146,3 +146,45 @@ test("el runtime es autocontenido, verifica emisor y dispone recursos WebGL", as
   assert.match(runtime, /renderer\?\.dispose\(\)/);
   assert.match(runtime, /resource\.dispose\(\)/);
 });
+
+test("el GLB se mantiene ligero: bajo 4 MB, sin atributos que el visor no usa y con la nota de modificación", () => {
+  assert.ok(binary.length < 4_000_000, `el GLB pesa ${binary.length} bytes`);
+  const attributes = new Set(document.meshes.flatMap((mesh) => mesh.primitives.flatMap((primitive) => Object.keys(primitive.attributes))));
+  assert.deepEqual([...attributes].sort(), ["NORMAL", "POSITION"]);
+  assert.match(document.asset.generator, /ecorche build \(BodyParts3D \+ Z-Anatomy\)/);
+  assert.match(document.asset.generator, /optimized with glTF-Transform/);
+});
+
+test("hay pósters WebP ligeros y el iframe no se monta con ahorro de datos o red lenta hasta que se pide", async () => {
+  for (const view of ["front", "back"]) {
+    const poster = await readFile(new URL(`../public/anatomy/poster-${view}.webp`, import.meta.url));
+    assert.equal(poster.toString("ascii", 0, 4), "RIFF");
+    assert.equal(poster.toString("ascii", 8, 12), "WEBP");
+    assert.ok(poster.length < 50_000, `poster-${view}.webp pesa ${poster.length} bytes`);
+  }
+  const host = await readFile(new URL("../src/components/anatomy/muscle-viewer-3d.tsx", import.meta.url), "utf8");
+  const html = await readFile(new URL("../public/anatomy/viewer.html", import.meta.url), "utf8");
+  assert.match(html, /<link rel="preload" href="\/models\/human_muscles\.glb" as="fetch" crossorigin/);
+  assert.match(host, /poster-\$\{camera === "back" \? "back" : "front"\}\.webp/);
+  assert.match(host, /saveData/);
+  assert.match(host, /const load = requested \|\| constrained === false/);
+  assert.match(host, /status !== "error" && load && <iframe/);
+  assert.match(host, /pointer-events-none[^"]*object-contain/);
+});
+
+test("el modelo y los pósters se sirven con caché larga", async () => {
+  const config = await readFile(new URL("../next.config.ts", import.meta.url), "utf8");
+  assert.match(config, /source: "\/models\/:file\*",\s*headers: \[\{ key: "Cache-Control", value: "public, max-age=604800/);
+  assert.match(config, /source: "\/anatomy\/:file\(poster-\[a-z\]\+/);
+});
+
+test("si el visor 3D falla se queda el póster como imagen de respaldo y no solo un mensaje", async () => {
+  const host = await readFile(new URL("../src/components/anatomy/muscle-viewer-3d.tsx", import.meta.url), "utf8");
+  // El póster ya no se desmonta en error: se atenúa y el aviso con «Reintentar» va encima.
+  assert.doesNotMatch(host, /status !== "error" && \(\s*(?:\/\/[^\n]*\n\s*)?<img/);
+  assert.match(host, /status === "error" \? "opacity-40"/);
+  assert.match(host, /status === "error" && <div className="absolute inset-x-0 bottom-0[^"]*">\s*<p role="alert"/);
+  assert.match(host, /onClick=\{\(\) => \{ ready\.current = false; setStatus\("loading"\)/);
+  // El iframe sí se desmonta en error, para no dejar un visor roto interceptando toques.
+  assert.match(host, /status !== "error" && load && <iframe/);
+});

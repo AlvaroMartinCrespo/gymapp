@@ -131,7 +131,7 @@ npm run dev      # genera los iconos PWA y arranca en http://localhost:3000
 npm run build
 ```
 
-Los iconos PWA y la mascota de GymRat (cara de rata caricaturesca) se generan con `scripts/generate-icons.mjs` (sin dependencias) antes de `dev` y `build`; no se versionan.
+Los iconos PWA, la mascota de GymRat (cara de rata caricaturesca) y las splash screens de iOS (`public/splash/`, una por tamaño de pantalla de `src/lib/splash-screens.mjs`) se generan con `scripts/generate-icons.mjs` (sin dependencias) antes de `dev` y `build`; no se versionan. Si añades un dispositivo nuevo, basta con sumarlo a esa lista: el layout y el generador la leen. Las capturas del manifest (`public/screenshots/`) sí se versionan; son ilustraciones de `scripts/screenshots/render-screenshots.py` (Pillow) y conviene sustituirlas por capturas reales con los mismos nombres y tamaños.
 
 Definir en `.env.local` las variables de [.env.example](.env.example). Solo se usan en el servidor; no requieren el prefijo `NEXT_PUBLIC_` ni una clave administrativa. No se han instalado paquetes para esta migración ni para las notificaciones push. Las variables de push (VAPID y QStash) también son solo de servidor, salvo `NEXT_PUBLIC_VAPID_PUBLIC_KEY`, que es pública por diseño; ver [Notificaciones del cronómetro](#notificaciones-del-cronómetro).
 
@@ -159,7 +159,9 @@ CDN al abrirse. Se usa Three.js directamente, no Fiber/Drei, para respetar la
 restricción de no instalar dependencias. Se ha leído la guía oficial de `use client`
 al no existir `node_modules/next/dist/docs/`; no se añaden APIs nuevas de Next.js.
 
-- Modelo real de 634 mallas (~6 MB), con compresión Meshopt y cuantización.
+- Modelo real de 634 mallas (~3,7 MB; el original pesaba ~6 MB), con compresión Meshopt y cuantización.
+	Se ha optimizado sin tocar nombres ni jerarquía (quita colores de vértice sin uso y simplifica
+	las mallas, ≈ 61 % de los triángulos); el proceso está en `scripts/model/`.
 - Equivalencias por nombre anatómico en `public/anatomy/muscles.mjs`: los 22
 	identificadores actuales del catálogo conservan sus nombres persistidos.
 	Se identifica además el resto de músculos del antebrazo como grupo auxiliar.
@@ -170,6 +172,11 @@ al no existir `node_modules/next/dist/docs/`; no se añaden APIs nuevas de Next.
 	el listado permite identificarlos aunque no sean visibles desde el ángulo actual.
 - Carga diferida del iframe, resolución limitada y renderizado bajo demanda;
 	suspensión al ocultarse, liberación de recursos y reintento tras error WebGL.
+- Póster estático (`public/anatomy/poster-front.webp` y `poster-back.webp`, 4-5 KB cada uno) mientras
+	carga el modelo. Con ahorro de datos o red 2G/3G (`navigator.connection`, no disponible en Safari)
+	el iframe no se monta y el GLB no se descarga hasta pulsar «Cargar modelo 3D».
+- El visor precarga el GLB en paralelo a los módulos y `/models/*` y los pósters se sirven con
+	`Cache-Control` de una semana (sus rutas no llevan versión: al cambiarlos, regenera los pósters).
 - Atribución del modelo accesible desde el enlace «Créditos y licencia» en la interfaz y en `public/models/ATTRIBUTION.md`.
 	Verificar el enlace original de descarga y posibles créditos adicionales antes
 	de redistribuir públicamente; los créditos disponibles proceden de su metadata.
@@ -183,12 +190,16 @@ El color escala con series principales, no con kg ni con una activación fisiol�
 estimada; las secundarias no se suman como series principales. Sin la migración,
 el recap anterior sigue funcionando y avisa de que falta el detalle muscular.
 
-Pruebas: `npm test` incluye inspección y descompresión del GLB real, equivalencias
+Pruebas: `npm test` incluye inspección y descompresión del GLB real (con un presupuesto de peso
+de 4 MB y sin atributos sin usar), pósters, carga diferida, caché, equivalencias
 de todos los ejercicios, colores, conteos válidos y contratos de permisos/API.
 El visor estático puede probarse independientemente de Next.js; esto no sustituye
 la prueba del componente React y de Supabase en la aplicación completa.
-Comprobado en navegador: carga y descompresión, pecho y espalda, iframe de tamaño
+Comprobado en navegador (con el GLB original de ~6 MB): carga y descompresión, pecho y espalda, iframe de tamaño
 móvil, mapa de calor, error por GLB ausente, pérdida de WebGL y recarga posterior.
+El GLB optimizado y el póster solo se han verificado cargándolos con el `GLTFLoader` y el decodificador
+meshopt del proyecto en Node (634 mallas, mismos nombres y grupos musculares, misma caja, normales válidas);
+falta repetir la prueba anterior en navegador antes de publicar.
 Los casos de `supabase/tests/rls.sql` incluyen ahora conteos musculares e
 aislamiento entre usuarios; requieren la novena migración aplicada y siguen
 pendientes de ejecución contra PostgreSQL real.
