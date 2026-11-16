@@ -14,21 +14,22 @@ type Exercise = (typeof exercises)[number];
 
 const normalize = (text: string) => text.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().trim();
 const byId = new Map(exercises.map((exercise) => [exercise.id, exercise]));
-const categories = [...new Set(exercises.map((exercise) => exercise.category))];
 
-type ExerciseSearchProps = { exerciseId: string; disabled: boolean; onChange: (exerciseId: string) => void };
+type ExerciseSearchProps = { exerciseId: string; /** Grupo muscular elegido: solo se listan sus ejercicios. */ category: string; disabled: boolean; onChange: (exerciseId: string) => void };
 
-/** Selector de ejercicio con búsqueda, favoritos y recientes (sustituye al <select> nativo). */
-export function ExerciseSearch({ exerciseId, disabled, onChange }: ExerciseSearchProps) {
+/** Selector de ejercicio del grupo muscular elegido, con búsqueda, favoritos y recientes (sustituye al <select> nativo). */
+export function ExerciseSearch({ exerciseId, category, disabled, onChange }: ExerciseSearchProps) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const { favorites, recents } = useExercisePrefs();
   const current = byId.get(exerciseId) ?? exercises[0];
   const search = normalize(query);
+  const pool = exercises.filter((exercise) => exercise.category === category);
+  const inGroup = (exercise: Exercise | undefined): exercise is Exercise => Boolean(exercise) && exercise!.category === category;
 
-  const matches = search ? exercises.filter((exercise) => normalize(`${exercise.name} ${exercise.category}`).includes(search)) : null;
-  const favoriteList = favorites.map((id) => byId.get(id)).filter((exercise): exercise is Exercise => Boolean(exercise));
-  const recentList = recents.map((id) => byId.get(id)).filter((exercise): exercise is Exercise => Boolean(exercise) && !favorites.includes(exercise!.id));
+  const matches = search ? pool.filter((exercise) => normalize(exercise.name).includes(search)) : null;
+  const favoriteList = favorites.map((id) => byId.get(id)).filter(inGroup);
+  const recentList = recents.map((id) => byId.get(id)).filter((exercise): exercise is Exercise => inGroup(exercise) && !favorites.includes(exercise.id));
 
   function close() {
     setOpen(false);
@@ -79,19 +80,19 @@ export function ExerciseSearch({ exerciseId, disabled, onChange }: ExerciseSearc
         <span className="min-w-0 truncate">{current.name}</span>
         <ChevronDown aria-hidden="true" className="size-4 shrink-0 text-muted-foreground" />
       </button>
-      <Sheet open={open} onOpenChange={(next) => { if (!next) close(); }} title="Elegir ejercicio">
+      <Sheet open={open} onOpenChange={(next) => { if (!next) close(); }} title={`Elegir ejercicio · ${category}`}>
         <div className="relative">
           <Search aria-hidden="true" className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-          <Input type="search" aria-label="Buscar ejercicio" placeholder="Buscar por nombre o grupo" value={query} onChange={(event) => setQuery(event.target.value)} className="pl-9" />
+          <Input type="search" aria-label="Buscar ejercicio" placeholder={`Buscar en ${category}`} value={query} onChange={(event) => setQuery(event.target.value)} className="pl-9" />
         </div>
         <div className="-mx-2 max-h-[55dvh] overflow-y-auto overscroll-contain" aria-live="polite">
           {matches ? (
-            matches.length === 0 ? <p className="px-3 py-6 text-center text-sm text-muted-foreground">Ningún ejercicio coincide con «{query.trim()}».</p> : <ul>{matches.map(row)}</ul>
+            matches.length === 0 ? <p className="px-3 py-6 text-center text-sm text-muted-foreground">Ningún ejercicio de {category} coincide con «{query.trim()}».</p> : <ul>{matches.map(row)}</ul>
           ) : (
             <>
               {group("Favoritos", favoriteList)}
               {group("Recientes", recentList)}
-              {categories.map((category) => group(category, exercises.filter((exercise) => exercise.category === category)))}
+              {group(category, pool)}
             </>
           )}
         </div>

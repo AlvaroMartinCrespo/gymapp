@@ -223,6 +223,8 @@ export function TrainingPanel() {
 
       <ExercisePicker exerciseId={exercise.id} disabled={locked} onChange={chooseExercise} />
 
+      <LbConverter />
+
       <SetForm
         nextNumber={nextNumber}
         previousDate={data?.previous_date}
@@ -269,8 +271,6 @@ export function TrainingPanel() {
           {viewerOpen && <MuscleViewer3D primary={exercise.primaryMeshes} secondary={exercise.secondaryMeshes} camera={exercise.defaultCamera} />}
         </div>
       </details>
-
-      <LbConverter />
 
       {daySummary && <DaySummary summary={daySummary} completed={Boolean(dayData?.completed_at)} loading={loading} locked={locked} onSelectExercise={chooseExercise} />}
     </div>

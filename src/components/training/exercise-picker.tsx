@@ -25,7 +25,7 @@ export function ExercisePicker({ exerciseId, disabled, onChange }: ExercisePicke
           ))}
         </div>
       </fieldset>
-      <ExerciseSearch exerciseId={exercise.id} disabled={disabled} onChange={onChange} />
+      <ExerciseSearch exerciseId={exercise.id} category={exercise.category} disabled={disabled} onChange={onChange} />
     </div>
   );
 }
